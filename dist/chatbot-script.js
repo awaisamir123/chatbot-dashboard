@@ -290,26 +290,65 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
+  // async function loadDocument() {
+  //   if (!cfg.documentKey || !cfg.apiEndpoint) {
+  //     addMessage('assistant', 'Configuration error: Missing document key or API endpoint.');
+  //     return;
+  //   }
+
+  //   try {
+  //     var response = await fetch(cfg.apiEndpoint + '/api/document/' + cfg.documentKey);
+  //     if (!response.ok) {
+  //       throw new Error('Failed to load document');
+  //     }
+      
+  //     var data = await response.json();
+  //     documentContent = data.content || '';
+  //     docLoaded = true;
+  //   } catch (error) {
+  //     console.error('Document load error:', error);
+  //     addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
+  //   }
+  // }
+
   async function loadDocument() {
-    if (!cfg.documentKey || !cfg.apiEndpoint) {
-      addMessage('assistant', 'Configuration error: Missing document key or API endpoint.');
-      return;
+  if (!cfg.apiEndpoint) {
+    addMessage('assistant', 'Configuration error: Missing API endpoint.');
+    return;
+  }
+
+  // Build the URL dynamically based on the provided query parameters
+  let url = `${cfg.apiEndpoint}/api/document`;
+
+  // Check if both documentKey and userId are provided in the configuration
+  const queryParams = [];
+  if (cfg.documentKey) {
+    queryParams.push(`document_key=${cfg.documentKey}`);
+  }
+  if (cfg.userId) {
+    queryParams.push(`user_id=${cfg.userId}`);
+  }
+
+  // Append query parameters to the URL if any
+  if (queryParams.length > 0) {
+    url += `?${queryParams.join('&')}`;
+  }
+
+  try {
+    var response = await fetch(url);
+    if (!response.ok) {
+      throw new Error('Failed to load document');
     }
 
-    try {
-      var response = await fetch(cfg.apiEndpoint + '/api/document/' + cfg.documentKey);
-      if (!response.ok) {
-        throw new Error('Failed to load document');
-      }
-      
-      var data = await response.json();
-      documentContent = data.content || '';
-      docLoaded = true;
-    } catch (error) {
-      console.error('Document load error:', error);
-      addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
-    }
+    var data = await response.json();
+    documentContent = data.content || '';
+    docLoaded = true;
+  } catch (error) {
+    console.error('Document load error:', error);
+    addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
   }
+}
+
 
   async function sendMessage() {
     var message = messageInput.value.trim();
