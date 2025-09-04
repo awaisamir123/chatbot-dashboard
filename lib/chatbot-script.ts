@@ -653,6 +653,190 @@ import { supabase } from './supabaseClient'
 // lib/chatbot-script.ts
 
 // lib/chatbot-script.ts
+// export interface ChatbotConfig {
+//     documentKey: string
+//     apiEndpoint: string
+//     theme?: 'gradient' | 'blue' | 'dark'
+//     position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
+//     primaryColor?: string
+//     welcomeMessage?: string
+//   }
+  
+//   export const generateChatbotScript = (config: ChatbotConfig): string => {
+//     const {
+//       documentKey,
+//       apiEndpoint,
+//       theme = 'gradient',
+//       position = 'bottom-right',
+//       primaryColor = '#667eea',
+//       welcomeMessage = 'Hi, I can answer questions about your document.'
+//     } = config
+  
+//     const js = (v: string) => JSON.stringify(v)
+  
+//     return `
+//   <!-- Document Chatbot Script, key ${documentKey} -->
+//   <script>(function(){
+//     // REQUIRED, paste your OpenAI key then publish your page
+//     // Example, const OPENAI_KEY = "sk-abc123...";
+//     const OPENAI_KEY = "sk-PASTE_YOUR_OPENAI_KEY_HERE";
+  
+//     const C = {
+//       documentKey: ${js(documentKey)},
+//       apiEndpoint: ${js(apiEndpoint)},
+//       theme: ${js(theme)},
+//       position: ${js(position)},
+//       primaryColor: ${js(primaryColor)},
+//       welcomeMessage: ${js(welcomeMessage)}
+//     };
+  
+//     if (document.getElementById('doc-chatbot-widget')) return;
+  
+//     if (!document.querySelector('script[src*="tailwindcss"]')) {
+//       const t = document.createElement('script'); t.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(t);
+//     }
+  
+//     const THEMES = {
+//       gradient:{ primary:"bg-gradient-to-br from-blue-500 to-purple-600", secondary:"bg-gradient-to-r from-blue-400 to-purple-500", text:"text-white" },
+//       blue:{ primary:"bg-blue-600", secondary:"bg-blue-500", text:"text-white" },
+//       dark:{ primary:"bg-gray-800", secondary:"bg-gray-700", text:"text-white" }
+//     };
+//     const POS = { "bottom-right":"bottom-6 right-6", "bottom-left":"bottom-6 left-6", "top-right":"top-6 right-6", "top-left":"top-6 left-6" };
+  
+//     class Chatbot {
+//       constructor(){
+//         this.key = (OPENAI_KEY || "").trim();
+//         this.docLoaded = false;
+//         this.documentContent = "";
+//         this.makeUI(); this.cache(); this.bind();
+//         const ok = /^sk-/.test(this.key);
+//         this.showLauncher(ok);
+//         if (!ok) console.error('[Document Assistant] OpenAI key missing in the embed script.');
+//       }
+  
+//       makeUI(){
+//         const t = THEMES[C.theme] || THEMES.gradient;
+//         const p = POS[C.position] || POS['bottom-right'];
+//         const root = document.createElement('div');
+//         root.id = 'doc-chatbot-widget';
+//         root.innerHTML = \`
+//           <div id="chat-toggle" class="fixed \${p} w-16 h-16 \${t.primary} rounded-full shadow-2xl cursor-pointer transform hover:scale-110 transition-all duration-300 flex items-center justify-center z-[9999]" style="display:none">
+//             <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
+//           </div>
+  
+//           <div id="chat-window" class="fixed \${p} w-96 h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col z-[9998] overflow-hidden border" style="display:none">
+//             <div class="\${t.primary} p-4 \${t.text}">
+//               <div class="flex items-center justify-between">
+//                 <div class="font-semibold">Document Assistant</div>
+//                 <button id="close-chat" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg grid place-items-center">
+//                   <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
+//                 </button>
+//               </div>
+//             </div>
+  
+//             <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-3"></div>
+  
+//             <div id="chat-input" class="p-4 border-t bg-white">
+//               <div class="flex items-center gap-2">
+//                 <input id="q" type="text" placeholder="Ask me about the document..." class="flex-1 px-3 py-2 border rounded-xl">
+//                 <button id="send" class="px-4 py-2 \${t.secondary} text-white rounded-xl">Send</button>
+//               </div>
+//             </div>
+//           </div>
+//         \`;
+//         document.body.appendChild(root);
+//       }
+  
+//       cache(){
+//         const r = document.getElementById('doc-chatbot-widget');
+//         this.el = {
+//           toggle: r.querySelector('#chat-toggle'),
+//           win: r.querySelector('#chat-window'),
+//           close: r.querySelector('#close-chat'),
+//           msgs: r.querySelector('#messages'),
+//           q: r.querySelector('#q'),
+//           send: r.querySelector('#send')
+//         };
+//       }
+  
+//       bind(){
+//         this.el.toggle.addEventListener('click', () => this.open());
+//         this.el.close.addEventListener('click', () => this.close());
+//         this.el.send.addEventListener('click', () => this.send());
+//         this.el.q.addEventListener('keydown', e => { if (e.key === 'Enter') this.send() });
+//       }
+  
+//       showLauncher(show){ this.el.toggle.style.display = show ? 'flex' : 'none' }
+  
+//       async open(){
+//         this.el.win.style.display = 'flex';
+//         if (!this.docLoaded) await this.loadDoc();
+//         if (this.el.msgs.childElementCount === 0) this.add('assistant', C.welcomeMessage);
+//       }
+  
+//       close(){ this.el.win.style.display = 'none' }
+  
+//       add(role, text){
+//         const row = document.createElement('div');
+//         row.className = 'flex ' + (role==='user'?'justify-end':'justify-start') + ' w-full';
+//         const b = document.createElement('div');
+//         b.className = 'max-w-[80%] rounded-2xl px-3 py-2 text-sm ' + (role==='user'?'bg-blue-600 text-white ml-auto':'bg-gray-100 text-gray-800');
+//         b.textContent = text;
+//         row.appendChild(b);
+//         this.el.msgs.appendChild(row);
+//         const t = document.createElement('div');
+//         t.className = 'text-[10px] text-gray-400 mt-1 ' + (role==='user'?'text-right':'text-left');
+//         const d = new Date(), hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
+//         t.textContent = hh + ':' + mm;
+//         this.el.msgs.appendChild(t);
+//         this.el.msgs.scrollTop = this.el.msgs.scrollHeight;
+//       }
+  
+//       async loadDoc(){
+//         try{
+//           const res = await fetch(C.apiEndpoint + '/api/document/' + C.documentKey);
+//           if (!res.ok) throw new Error('not ok');
+//           const data = await res.json();
+//           this.documentContent = data.content || '';
+//           this.docLoaded = true;
+//         }catch(e){
+//           this.add('assistant', 'Error, could not load the document, please check the document key');
+//         }
+//       }
+  
+//       async send(){
+//         const q = this.el.q.value.trim();
+//         if (!q) return;
+  
+//         if (!this.key) { this.add('assistant', 'Missing OpenAI key in the embed script.'); return }
+//         if (!this.docLoaded) { this.add('assistant', 'Document is still loading, please try again in a moment'); return }
+  
+//         this.add('user', q);
+//         this.el.q.value = '';
+  
+//         try{
+//           const res = await fetch(C.apiEndpoint + '/api/chat', {
+//             method: 'POST',
+//             headers: { 'Content-Type': 'application/json' },
+//             body: JSON.stringify({ question: q, documentKey: C.documentKey, apiKey: this.key })
+//           });
+//           if (!res.ok) throw new Error('bad response');
+//           const data = await res.json();
+//           this.add('assistant', data.answer || 'No response');
+//         }catch(e){
+//           this.add('assistant', 'Sorry, I hit an error, please try again');
+//         }
+//       }
+//     }
+  
+//     if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init) } else { init() }
+//     function init(){ if (window.docChatbotInstance) return; window.docChatbotInstance = new Chatbot() }
+//   })();</script>
+//   <!-- End Document Chatbot Script -->
+//   `
+//   }
+
+// lib/chatbot-script.ts
 export interface ChatbotConfig {
     documentKey: string
     apiEndpoint: string
@@ -660,7 +844,17 @@ export interface ChatbotConfig {
     position?: 'bottom-right' | 'bottom-left' | 'top-right' | 'top-left'
     primaryColor?: string
     welcomeMessage?: string
+    // optional, only if you want to prefill the key in the embed you hand to users
+    openaiKeyPlaceholder?: string
   }
+  
+  /** escape for safe inclusion inside an HTML attribute */
+  const escapeAttr = (v: string) =>
+    String(v)
+      .replace(/&/g, '&amp;')
+      .replace(/"/g, '&quot;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
   
   export const generateChatbotScript = (config: ChatbotConfig): string => {
     const {
@@ -669,170 +863,30 @@ export interface ChatbotConfig {
       theme = 'gradient',
       position = 'bottom-right',
       primaryColor = '#667eea',
-      welcomeMessage = 'Hi, I can answer questions about your document.'
+      welcomeMessage = 'Hi, I can answer questions about your document.',
+      // show a clear placeholder the customer will replace
+      openaiKeyPlaceholder = 'sk-PASTE_YOUR_OPENAI_KEY_HERE'
     } = config
   
-    const js = (v: string) => JSON.stringify(v)
+    // IMPORTANT, point this to a JS file, not TS
+    // const cdnSrc =
+    //   'https://cdn.jsdelivr.net/gh/awaisamir123/chatbot-dashboard@ae26e65915b240a75407c6019e6eb6dcf1a37f8b/dist/chatbot-widget.js'
   
+    const cdnSrc = "https://cdn.jsdelivr.net/gh/awaisamir123/chatbot-dashboard@ae26e65915b240a75407c6019e6eb6dcf1a37f8b/dist/chatbot-script.ts"
     return `
-  <!-- Document Chatbot Script, key ${documentKey} -->
-  <script>(function(){
-    // REQUIRED, paste your OpenAI key then publish your page
-    // Example, const OPENAI_KEY = "sk-abc123...";
-    const OPENAI_KEY = "sk-PASTE_YOUR_OPENAI_KEY_HERE";
-  
-    const C = {
-      documentKey: ${js(documentKey)},
-      apiEndpoint: ${js(apiEndpoint)},
-      theme: ${js(theme)},
-      position: ${js(position)},
-      primaryColor: ${js(primaryColor)},
-      welcomeMessage: ${js(welcomeMessage)}
-    };
-  
-    if (document.getElementById('doc-chatbot-widget')) return;
-  
-    if (!document.querySelector('script[src*="tailwindcss"]')) {
-      const t = document.createElement('script'); t.src = 'https://cdn.tailwindcss.com'; document.head.appendChild(t);
-    }
-  
-    const THEMES = {
-      gradient:{ primary:"bg-gradient-to-br from-blue-500 to-purple-600", secondary:"bg-gradient-to-r from-blue-400 to-purple-500", text:"text-white" },
-      blue:{ primary:"bg-blue-600", secondary:"bg-blue-500", text:"text-white" },
-      dark:{ primary:"bg-gray-800", secondary:"bg-gray-700", text:"text-white" }
-    };
-    const POS = { "bottom-right":"bottom-6 right-6", "bottom-left":"bottom-6 left-6", "top-right":"top-6 right-6", "top-left":"top-6 left-6" };
-  
-    class Chatbot {
-      constructor(){
-        this.key = (OPENAI_KEY || "").trim();
-        this.docLoaded = false;
-        this.documentContent = "";
-        this.makeUI(); this.cache(); this.bind();
-        const ok = /^sk-/.test(this.key);
-        this.showLauncher(ok);
-        if (!ok) console.error('[Document Assistant] OpenAI key missing in the embed script.');
-      }
-  
-      makeUI(){
-        const t = THEMES[C.theme] || THEMES.gradient;
-        const p = POS[C.position] || POS['bottom-right'];
-        const root = document.createElement('div');
-        root.id = 'doc-chatbot-widget';
-        root.innerHTML = \`
-          <div id="chat-toggle" class="fixed \${p} w-16 h-16 \${t.primary} rounded-full shadow-2xl cursor-pointer transform hover:scale-110 transition-all duration-300 flex items-center justify-center z-[9999]" style="display:none">
-            <svg class="w-7 h-7 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M8 12h.01M12 12h.01M16 12h.01M21 12c0 4.418-4.03 8-9 8a9.863 9.863 0 01-4.255-.949L3 20l1.395-3.72C3.512 15.042 3 13.574 3 12c0-4.418 4.03-8 9-8s9 3.582 9 8z"/></svg>
-          </div>
-  
-          <div id="chat-window" class="fixed \${p} w-96 h-[500px] bg-white rounded-2xl shadow-2xl flex flex-col z-[9998] overflow-hidden border" style="display:none">
-            <div class="\${t.primary} p-4 \${t.text}">
-              <div class="flex items-center justify-between">
-                <div class="font-semibold">Document Assistant</div>
-                <button id="close-chat" class="w-8 h-8 bg-white/20 hover:bg-white/30 rounded-lg grid place-items-center">
-                  <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
-                </button>
-              </div>
-            </div>
-  
-            <div id="messages" class="flex-1 p-4 overflow-y-auto space-y-3"></div>
-  
-            <div id="chat-input" class="p-4 border-t bg-white">
-              <div class="flex items-center gap-2">
-                <input id="q" type="text" placeholder="Ask me about the document..." class="flex-1 px-3 py-2 border rounded-xl">
-                <button id="send" class="px-4 py-2 \${t.secondary} text-white rounded-xl">Send</button>
-              </div>
-            </div>
-          </div>
-        \`;
-        document.body.appendChild(root);
-      }
-  
-      cache(){
-        const r = document.getElementById('doc-chatbot-widget');
-        this.el = {
-          toggle: r.querySelector('#chat-toggle'),
-          win: r.querySelector('#chat-window'),
-          close: r.querySelector('#close-chat'),
-          msgs: r.querySelector('#messages'),
-          q: r.querySelector('#q'),
-          send: r.querySelector('#send')
-        };
-      }
-  
-      bind(){
-        this.el.toggle.addEventListener('click', () => this.open());
-        this.el.close.addEventListener('click', () => this.close());
-        this.el.send.addEventListener('click', () => this.send());
-        this.el.q.addEventListener('keydown', e => { if (e.key === 'Enter') this.send() });
-      }
-  
-      showLauncher(show){ this.el.toggle.style.display = show ? 'flex' : 'none' }
-  
-      async open(){
-        this.el.win.style.display = 'flex';
-        if (!this.docLoaded) await this.loadDoc();
-        if (this.el.msgs.childElementCount === 0) this.add('assistant', C.welcomeMessage);
-      }
-  
-      close(){ this.el.win.style.display = 'none' }
-  
-      add(role, text){
-        const row = document.createElement('div');
-        row.className = 'flex ' + (role==='user'?'justify-end':'justify-start') + ' w-full';
-        const b = document.createElement('div');
-        b.className = 'max-w-[80%] rounded-2xl px-3 py-2 text-sm ' + (role==='user'?'bg-blue-600 text-white ml-auto':'bg-gray-100 text-gray-800');
-        b.textContent = text;
-        row.appendChild(b);
-        this.el.msgs.appendChild(row);
-        const t = document.createElement('div');
-        t.className = 'text-[10px] text-gray-400 mt-1 ' + (role==='user'?'text-right':'text-left');
-        const d = new Date(), hh=String(d.getHours()).padStart(2,'0'), mm=String(d.getMinutes()).padStart(2,'0');
-        t.textContent = hh + ':' + mm;
-        this.el.msgs.appendChild(t);
-        this.el.msgs.scrollTop = this.el.msgs.scrollHeight;
-      }
-  
-      async loadDoc(){
-        try{
-          const res = await fetch(C.apiEndpoint + '/api/document/' + C.documentKey);
-          if (!res.ok) throw new Error('not ok');
-          const data = await res.json();
-          this.documentContent = data.content || '';
-          this.docLoaded = true;
-        }catch(e){
-          this.add('assistant', 'Error, could not load the document, please check the document key');
-        }
-      }
-  
-      async send(){
-        const q = this.el.q.value.trim();
-        if (!q) return;
-  
-        if (!this.key) { this.add('assistant', 'Missing OpenAI key in the embed script.'); return }
-        if (!this.docLoaded) { this.add('assistant', 'Document is still loading, please try again in a moment'); return }
-  
-        this.add('user', q);
-        this.el.q.value = '';
-  
-        try{
-          const res = await fetch(C.apiEndpoint + '/api/chat', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ question: q, documentKey: C.documentKey, apiKey: this.key })
-          });
-          if (!res.ok) throw new Error('bad response');
-          const data = await res.json();
-          this.add('assistant', data.answer || 'No response');
-        }catch(e){
-          this.add('assistant', 'Sorry, I hit an error, please try again');
-        }
-      }
-    }
-  
-    if (document.readyState === 'loading') { document.addEventListener('DOMContentLoaded', init) } else { init() }
-    function init(){ if (window.docChatbotInstance) return; window.docChatbotInstance = new Chatbot() }
-  })();</script>
-  <!-- End Document Chatbot Script -->
-  `
+  <!-- Document Chatbot Embed, key ${escapeAttr(documentKey)} -->
+  <script
+    id="chatbot-embed-script"
+    src="${cdnSrc}"
+    async
+    data-chatbot-api="${escapeAttr(apiEndpoint)}"
+    data-chatbot-document-key="${escapeAttr(documentKey)}"
+    data-chatbot-openaikey="${escapeAttr(openaiKeyPlaceholder)}"
+    data-chatbot-theme="${escapeAttr(theme)}"
+    data-chatbot-position="${escapeAttr(position)}"
+    data-chatbot-primary="${escapeAttr(primaryColor)}"
+    data-chatbot-welcome="${escapeAttr(welcomeMessage)}"
+  ></script>`.trim()
   }
+  
   
