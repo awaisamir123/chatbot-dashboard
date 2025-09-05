@@ -320,13 +320,14 @@
   // Build the URL dynamically based on the provided query parameters
   let url = `${cfg.apiEndpoint}/api/document`;
 
-  // Check if both documentKey and userId are provided in the configuration
+  // Check if documentKey and userId are provided in the configuration
   const queryParams = [];
   if (cfg.documentKey) {
-    queryParams.push(`document_key=${cfg.documentKey}`);
+    // Encode the document key to handle spaces, parentheses, etc.
+    queryParams.push(`document_key=${encodeURIComponent(cfg.documentKey)}`);
   }
   if (cfg.userId) {
-    queryParams.push(`user_id=${cfg.userId}`);
+    queryParams.push(`user_id=${encodeURIComponent(cfg.userId)}`);
   }
 
   // Append query parameters to the URL if any
@@ -335,12 +336,12 @@
   }
 
   try {
-    var response = await fetch(url);
+    const response = await fetch(url);
     if (!response.ok) {
       throw new Error('Failed to load document');
     }
 
-    var data = await response.json();
+    const data = await response.json();
     documentContent = data.content || '';
     docLoaded = true;
   } catch (error) {
@@ -348,6 +349,7 @@
     addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
   }
 }
+
 
 
   async function sendMessage() {
