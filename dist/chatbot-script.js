@@ -490,7 +490,7 @@
     var message = messageInput.value.trim();
     if (!message) return;
 
-    if (!cfg.openaiApiKey || cfg.openaiApiKey === 'YOUR_OPENAI_API_KEY') {
+    if (!cfg.openaiApiKey) {
       addMessage('assistant', 'OpenAI API key is not configured properly. Please update the script with a valid API key.');
       return;
     }
