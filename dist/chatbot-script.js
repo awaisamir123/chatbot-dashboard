@@ -529,17 +529,31 @@
     try {
       var contextToUse = documentContent;
       
-      // If we have a PDF URL or document URL, inform the AI about it
-      if (documentContent.startsWith('PDF_URL:') || documentContent.startsWith('DOCUMENT_URL:')) {
-        var urlType = documentContent.startsWith('PDF_URL:') ? 'PDF' : 'document';
-        var url = documentContent.substring(documentContent.indexOf(':') + 1);
-        contextToUse = `This is a ${urlType} document located at: ${url}. Please note that you cannot directly access the file content, so inform the user that you need the document content to be provided or extracted for specific questions.`;
+      // Handle special cases for greetings and general questions
+      var lowerMessage = message.toLowerCase().trim();
+      var isGreeting = /^(hi|hello|hey|good\s+(morning|afternoon|evening)|greetings?)$/i.test(lowerMessage);
+      var isGeneralQuestion = /^(what|how|who|when|where|why|can you|do you|are you)/i.test(lowerMessage);
+      
+      if (isGreeting) {
+        addMessage('assistant', 'Hello! I\'m your document assistant and I\'m here to help you understand and find information in your document. What would you like to know about it?');
+        return;
+      }
+      
+      // If we have limited document context, enhance it
+      if (documentContent.startsWith('PDF_URL:') || documentContent.startsWith('DOCUMENT_URL:') || 
+          contextToUse.includes('I\'m ready to help answer questions')) {
+        
+        // For URLs or limited context, create a more helpful prompt
+        var enhancedContext = contextToUse + "\n\nNote: I'm a helpful assistant specialized in answering questions about documents. " +
+          "I can help with general questions, provide explanations, and assist with understanding various topics. " +
+          "If you have specific questions about the document content, I'll do my best to help based on the information available.";
+        contextToUse = enhancedContext;
       }
 
       var response = await openaiService.generateResponse(message, contextToUse, {
         model: "gpt-4o-mini",
         maxTokens: 600,
-        temperature: 0.4
+        temperature: 0.7
       });
 
       // Remove typing indicator
