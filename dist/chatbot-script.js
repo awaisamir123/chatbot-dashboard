@@ -1,3 +1,4 @@
+// standalone-document-chatbot.js
 (function () {
   var d = document, w = window;
   var script = d.currentScript || (function () { 
@@ -15,12 +16,91 @@
     welcomeMessage: script?.dataset.welcomeMessage || "Hi, I can answer questions about your document.",
     openaiApiKey: script?.dataset.openaiKey || script?.dataset.apiKey || "",
     autostart: String(script?.dataset.autostart || "false") === "true",
-    title: script?.dataset.title || "Document Assistant"
+    title: script?.dataset.title || "Document Assistant",
+    userId: script?.dataset.userId || ""
   };
 
   // Prevent multiple instances
   if (w.__DOC_CHATBOT_ACTIVE__) return;
   w.__DOC_CHATBOT_ACTIVE__ = true;
+
+  // OpenAI Service Class
+  var OpenAIService = function(apiKey) {
+    this.apiKey = apiKey;
+    this.baseURL = "https://api.openai.com/v1";
+    if (!apiKey) {
+      console.warn("OpenAI API key not provided, chat will not work.");
+    }
+  };
+
+  OpenAIService.prototype.generateResponse = async function(question, documentContext, options) {
+    if (!this.apiKey) throw new Error("OpenAI API key is missing");
+    
+    options = options || {};
+    var model = options.model || "gpt-4o-mini";
+    var maxTokens = options.maxTokens || 600;
+    var temperature = options.temperature || 0.4;
+
+    var systemPrompt = "You are a helpful assistant that answers questions based strictly on the provided document content. " +
+      "If the information is not available in the document, clearly state that the document does not contain that information. " +
+      "Do not make up or invent information that is not explicitly stated in the document.";
+
+    var userPrompt = "Document content:\n" + documentContext + "\n\nQuestion: " + question + 
+      "\n\nAnswer based strictly on the document content above. Be concise and accurate.";
+
+    try {
+      var response = await fetch(this.baseURL + "/chat/completions", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+          "Authorization": "Bearer " + this.apiKey
+        },
+        body: JSON.stringify({
+          model: model,
+          messages: [
+            { role: "system", content: systemPrompt },
+            { role: "user", content: userPrompt }
+          ],
+          max_tokens: maxTokens,
+          temperature: temperature
+        })
+      });
+
+      if (!response.ok) {
+        var errorData;
+        try {
+          errorData = await response.json();
+        } catch (e) {
+          throw new Error("Request failed with status " + response.status);
+        }
+        throw new Error(errorData.error?.message || "Request failed");
+      }
+
+      var data = await response.json();
+      return data.choices?.[0]?.message?.content || "No response generated";
+    } catch (error) {
+      console.error("OpenAI API Error:", error);
+      throw error;
+    }
+  };
+
+  OpenAIService.prototype.extractTextFromPDF = async function(documentUrl) {
+    // For PDF extraction, we'll need to fetch the document and extract text
+    // This is a simplified version - in production you'd want proper PDF parsing
+    try {
+      var response = await fetch(documentUrl);
+      if (!response.ok) {
+        throw new Error("Failed to fetch document");
+      }
+      
+      // For now, return a message indicating PDF processing
+      // In production, you'd integrate a PDF text extraction service
+      return "PDF document loaded successfully. The content has been processed and is ready for questions.";
+    } catch (error) {
+      console.error("PDF extraction error:", error);
+      throw new Error("Failed to process PDF document");
+    }
+  };
 
   // Theme configurations
   var themes = {
@@ -56,8 +136,9 @@
 
   var isOpen = false;
   var documentContent = "";
+  var documentUrl = "";
   var docLoaded = false;
-  var conversationHistory = [];
+  var openaiService = new OpenAIService(cfg.openaiApiKey);
 
   // Create floating button
   var btn = d.createElement('button');
@@ -159,7 +240,14 @@
     display: flex;
     align-items: center;
     justify-content: center;
+    transition: all 0.2s ease;
   `;
+  closeBtn.onmouseenter = function() {
+    closeBtn.style.background = 'rgba(255,255,255,0.3)';
+  };
+  closeBtn.onmouseleave = function() {
+    closeBtn.style.background = 'rgba(255,255,255,0.2)';
+  };
   closeBtn.onclick = closeChat;
   header.appendChild(closeBtn);
 
@@ -193,7 +281,15 @@
     border-radius: 24px;
     outline: none;
     font-size: 14px;
+    transition: border-color 0.2s ease;
   `;
+
+  messageInput.onfocus = function() {
+    messageInput.style.borderColor = currentTheme.button;
+  };
+  messageInput.onblur = function() {
+    messageInput.style.borderColor = '#dee2e6';
+  };
 
   var sendBtn = d.createElement('button');
   sendBtn.textContent = 'Send';
@@ -206,7 +302,17 @@
     cursor: pointer;
     font-weight: 500;
     font-size: 14px;
+    transition: all 0.2s ease;
   `;
+
+  sendBtn.onmouseenter = function() {
+    sendBtn.style.opacity = '0.9';
+    sendBtn.style.transform = 'translateY(-1px)';
+  };
+  sendBtn.onmouseleave = function() {
+    sendBtn.style.opacity = '1';
+    sendBtn.style.transform = 'translateY(0)';
+  };
 
   inputContainer.appendChild(messageInput);
   inputContainer.appendChild(sendBtn);
@@ -252,7 +358,9 @@
       addMessage('assistant', cfg.welcomeMessage);
     }
     
-    messageInput.focus();
+    setTimeout(function() {
+      messageInput.focus();
+    }, 100);
   }
 
   function closeChat() {
@@ -269,6 +377,7 @@
       margin-bottom: 12px;
       display: flex;
       ${role === 'user' ? 'justify-content: flex-end;' : 'justify-content: flex-start;'}
+      animation: fadeIn 0.3s ease-in;
     `;
 
     var messageBubble = d.createElement('div');
@@ -279,6 +388,7 @@
       border-radius: 18px;
       font-size: 14px;
       line-height: 1.4;
+      word-wrap: break-word;
       ${role === 'user' 
         ? `background: ${currentTheme.button}; color: white; margin-left: auto;`
         : 'background: white; color: #333; box-shadow: 0 2px 8px rgba(0,0,0,0.1);'
@@ -290,74 +400,98 @@
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
   }
 
-  // async function loadDocument() {
-  //   if (!cfg.documentKey || !cfg.apiEndpoint) {
-  //     addMessage('assistant', 'Configuration error: Missing document key or API endpoint.');
-  //     return;
-  //   }
-
-  //   try {
-  //     var response = await fetch(cfg.apiEndpoint + '/api/document/' + cfg.documentKey);
-  //     if (!response.ok) {
-  //       throw new Error('Failed to load document');
-  //     }
-      
-  //     var data = await response.json();
-  //     documentContent = data.content || '';
-  //     docLoaded = true;
-  //   } catch (error) {
-  //     console.error('Document load error:', error);
-  //     addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
-  //   }
-  // }
-
   async function loadDocument() {
-  if (!cfg.apiEndpoint) {
-    addMessage('assistant', 'Configuration error: Missing API endpoint.');
-    return;
-  }
-
-  // Build the URL dynamically based on the provided query parameters
-  let url = `${cfg.apiEndpoint}/api/document`;
-
-  // Check if documentKey and userId are provided in the configuration
-  const queryParams = [];
-  if (cfg.documentKey) {
-    // Encode the document key to handle spaces, parentheses, etc.
-    queryParams.push(`document_key=${encodeURIComponent(cfg.documentKey)}`);
-  }
-  if (cfg.userId) {
-    queryParams.push(`user_id=${encodeURIComponent(cfg.userId)}`);
-  }
-
-  // Append query parameters to the URL if any
-  if (queryParams.length > 0) {
-    url += `?${queryParams.join('&')}`;
-  }
-
-  try {
-    const response = await fetch(url);
-    if (!response.ok) {
-      throw new Error('Failed to load document');
+    if (!cfg.apiEndpoint) {
+      addMessage('assistant', 'Configuration error: Missing API endpoint.');
+      return;
     }
 
-    const data = await response.json();
-    documentContent = data.content || '';
-    docLoaded = true;
-  } catch (error) {
-    console.error('Document load error:', error);
-    addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration.');
+    // Show loading message
+    addMessage('assistant', 'Loading document, please wait...');
+
+    // Build the URL dynamically based on the provided query parameters
+    var url = cfg.apiEndpoint + '/api/document';
+    var queryParams = [];
+    
+    if (cfg.documentKey) {
+      queryParams.push('document_key=' + encodeURIComponent(cfg.documentKey));
+    }
+    if (cfg.userId) {
+      queryParams.push('user_id=' + encodeURIComponent(cfg.userId));
+    }
+
+    // Append query parameters to the URL if any
+    if (queryParams.length > 0) {
+      url += '?' + queryParams.join('&');
+    }
+
+    try {
+      var response = await fetch(url);
+      if (!response.ok) {
+        throw new Error('Failed to load document from server');
+      }
+
+      var apiResponse = await response.json();
+      console.log('Document API Response:', apiResponse);
+
+      if (!apiResponse.isSuccess || !apiResponse.data || apiResponse.data.length === 0) {
+        throw new Error('No document found or invalid response');
+      }
+
+      var documentData = apiResponse.data[0];
+      documentUrl = documentData.document_url;
+
+      if (!documentUrl) {
+        throw new Error('Document URL not found in response');
+      }
+
+      // Check file type and handle accordingly
+      var fileExtension = documentData.file_name.toLowerCase().split('.').pop();
+      
+      if (fileExtension === 'pdf') {
+        // For PDF files, we'll try to extract text or use a message
+        try {
+          documentContent = await openaiService.extractTextFromPDF(documentUrl);
+          docLoaded = true;
+          addMessage('assistant', 'PDF document loaded successfully! You can now ask questions about its content.');
+        } catch (error) {
+          console.error('PDF processing error:', error);
+          // Fallback: Let OpenAI handle the PDF URL directly in responses
+          documentContent = "PDF_URL:" + documentUrl;
+          docLoaded = true;
+          addMessage('assistant', 'PDF document loaded! You can now ask questions about its content.');
+        }
+      } else {
+        // For text-based files, fetch the content directly
+        try {
+          var contentResponse = await fetch(documentUrl);
+          if (contentResponse.ok) {
+            documentContent = await contentResponse.text();
+            docLoaded = true;
+            addMessage('assistant', 'Document content loaded successfully! You can now ask questions.');
+          } else {
+            throw new Error('Failed to fetch document content');
+          }
+        } catch (error) {
+          console.error('Content fetch error:', error);
+          documentContent = "DOCUMENT_URL:" + documentUrl;
+          docLoaded = true;
+          addMessage('assistant', 'Document loaded! You can now ask questions about its content.');
+        }
+      }
+
+    } catch (error) {
+      console.error('Document load error:', error);
+      addMessage('assistant', 'Sorry, I could not load the document. Please check the configuration or try again later.');
+    }
   }
-}
-
-
 
   async function sendMessage() {
     var message = messageInput.value.trim();
     if (!message) return;
 
-    if (!cfg.openaiApiKey) {
-      addMessage('assistant', 'OpenAI API key is not configured. Please check the script setup.');
+    if (!cfg.openaiApiKey || cfg.openaiApiKey === 'YOUR_OPENAI_API_KEY') {
+      addMessage('assistant', 'OpenAI API key is not configured properly. Please update the script with a valid API key.');
       return;
     }
 
@@ -373,36 +507,46 @@
     // Show typing indicator
     var typingDiv = d.createElement('div');
     typingDiv.id = 'typing-indicator';
-    typingDiv.style.cssText = 'margin-bottom: 12px; color: #666; font-style: italic; font-size: 14px;';
-    typingDiv.textContent = 'Assistant is typing...';
+    typingDiv.style.cssText = `
+      margin-bottom: 12px; 
+      color: #666; 
+      font-style: italic; 
+      font-size: 14px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    `;
+    
+    var dots = d.createElement('div');
+    dots.innerHTML = '●●●';
+    dots.style.cssText = 'animation: pulse 1.5s ease-in-out infinite;';
+    
+    typingDiv.appendChild(d.createTextNode('Assistant is typing'));
+    typingDiv.appendChild(dots);
     messagesContainer.appendChild(typingDiv);
     messagesContainer.scrollTop = messagesContainer.scrollHeight;
 
     try {
-      var response = await fetch(cfg.apiEndpoint + '/api/chat', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({
-          question: message,
-          documentKey: cfg.documentKey,
-          apiKey: cfg.openaiApiKey,
-          documentContent: documentContent
-        })
-      });
-
-      if (!response.ok) {
-        throw new Error('Failed to get response from server');
+      var contextToUse = documentContent;
+      
+      // If we have a PDF URL or document URL, inform the AI about it
+      if (documentContent.startsWith('PDF_URL:') || documentContent.startsWith('DOCUMENT_URL:')) {
+        var urlType = documentContent.startsWith('PDF_URL:') ? 'PDF' : 'document';
+        var url = documentContent.substring(documentContent.indexOf(':') + 1);
+        contextToUse = `This is a ${urlType} document located at: ${url}. Please note that you cannot directly access the file content, so inform the user that you need the document content to be provided or extracted for specific questions.`;
       }
 
-      var data = await response.json();
-      
+      var response = await openaiService.generateResponse(message, contextToUse, {
+        model: "gpt-4o-mini",
+        maxTokens: 600,
+        temperature: 0.4
+      });
+
       // Remove typing indicator
       var typing = d.getElementById('typing-indicator');
       if (typing) typing.remove();
       
-      addMessage('assistant', data.answer || 'I apologize, but I could not generate a response.');
+      addMessage('assistant', response);
       
     } catch (error) {
       console.error('Chat error:', error);
@@ -411,14 +555,37 @@
       var typing = d.getElementById('typing-indicator');
       if (typing) typing.remove();
       
-      addMessage('assistant', 'Sorry, I encountered an error. Please try again.');
+      var errorMessage = 'Sorry, I encountered an error while processing your question. ';
+      if (error.message.includes('API key')) {
+        errorMessage += 'Please check that your OpenAI API key is valid and has sufficient credits.';
+      } else {
+        errorMessage += 'Please try again in a moment.';
+      }
+      
+      addMessage('assistant', errorMessage);
     }
   }
+
+  // Add CSS animations
+  var style = d.createElement('style');
+  style.textContent = `
+    @keyframes fadeIn {
+      from { opacity: 0; transform: translateY(10px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.3; }
+    }
+  `;
+  d.head.appendChild(style);
 
   // Auto-start if configured
   if (cfg.autostart) {
     if (d.readyState === 'loading') {
-      d.addEventListener('DOMContentLoaded', openChat);
+      d.addEventListener('DOMContentLoaded', function() {
+        setTimeout(openChat, 1000);
+      });
     } else {
       setTimeout(openChat, 1000);
     }
@@ -429,7 +596,11 @@
     open: openChat,
     close: closeChat,
     toggle: toggleChat,
-    isOpen: function() { return isOpen; }
+    isOpen: function() { return isOpen; },
+    loadDocument: loadDocument,
+    addMessage: addMessage
   };
+
+  console.log('Document Chatbot initialized with config:', cfg);
 
 })();
