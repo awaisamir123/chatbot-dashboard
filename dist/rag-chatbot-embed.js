@@ -167,7 +167,8 @@
 //   }
 // })();
 
-// rag-embed.js (host on your CDN)
+<!-- rag-embed.js (host on your CDN) -->
+<script>
 (function () {
   if (window.__RAG_EMBED_LOADED__) return;
   window.__RAG_EMBED_LOADED__ = true;
@@ -176,42 +177,44 @@
   var el = d.currentScript || d.getElementById("rag-chatbot");
   if (!el) return;
 
-  // config from data-* attributes
+  // --- config ---------------------------------------------------------------
   var cfg = {
     documentKey: el.dataset.documentKey || "",
-    apiBase: el.dataset.apiEndpoint || "",
-    title: el.dataset.title || "Olleh AI Assistant",
-    welcome: el.dataset.welcomeMessage || "Hi there! How can I help today?",
-    autostart: (el.dataset.autostart || "false") === "true",
-    position: el.dataset.position || "bottom-right",
-    // custom icon (optional); falls back to Olleh mic
-    iconSrc: el.dataset.iconSrc || "https://olleh.ai/assets/olleh-icon.svg",
+    apiBase:     el.dataset.apiEndpoint || "",
+    title:       el.dataset.title || "Olleh AI Assistant",
+    welcome:     el.dataset.welcomeMessage || "Hi there! How can I help today?",
+    autostart:   (el.dataset.autostart || "false") === "true",
+    position:    el.dataset.position || "bottom-right",
+    iconSrc:     el.dataset.iconSrc || "https://olleh.ai/assets/olleh-icon.svg"
   };
-
   if (!cfg.documentKey || !cfg.apiBase) {
     console.warn("[RAG] Missing documentKey or apiBase");
     return;
   }
 
-  // inject pulse animation styles once
+  // Resolve relative icon paths against the script’s URL
+  function resolveUrlMaybeRelative(urlStr) {
+    try {
+      var base = new URL((d.currentScript && d.currentScript.src) || location.href);
+      return new URL(urlStr, base).toString();
+    } catch (_) { return urlStr; }
+  }
+  cfg.iconSrc = resolveUrlMaybeRelative(cfg.iconSrc);
+
+  // --- shared styles (pulse) -----------------------------------------------
   if (!d.getElementById("olleh-mic-anim")) {
     var st = d.createElement("style");
     st.id = "olleh-mic-anim";
     st.textContent = '\
       .olleh-mic-btn{ position:fixed; }\
       .olleh-mic-btn::after{\
-        content:"";\
-        position:absolute;\
-        inset:-6px;\
-        border-radius:9999px;\
-        pointer-events:none;\
-        box-shadow:0 0 0 0 rgba(59,130,246,0.55);\
-        animation:ollehBeat 1.6s ease-out infinite;\
+        content:""; position:absolute; inset:-6px; border-radius:9999px; pointer-events:none; \
+        box-shadow:0 0 0 0 rgba(59,130,246,0.55); animation:ollehBeat 1.6s ease-out infinite;\
       }\
       @keyframes ollehBeat{\
-        0%   { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.55); }\
-        60%  { transform:scale(1.08); box-shadow:0 0 0 14px rgba(59,130,246,0.00); }\
-        100% { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.00); }\
+        0%{transform:scale(1);   box-shadow:0 0 0 0   rgba(59,130,246,0.55);}\
+        60%{transform:scale(1.08);box-shadow:0 0 0 14px rgba(59,130,246,0.0);}\
+        100%{transform:scale(1); box-shadow:0 0 0 0   rgba(59,130,246,0.0);}\
       }';
     d.head.appendChild(st);
   }
@@ -223,7 +226,7 @@
     "top-left":     { top:    "24px", left:  "24px" }
   };
 
-  // Floating mic button
+  // --- Floating button (same as voice agent) -------------------------------
   var btn = d.createElement("button");
   btn.type = "button";
   btn.setAttribute("aria-label", "Open Olleh AI Assistant");
@@ -235,64 +238,48 @@
     borderRadius: "9999px",
     border: "0",
     cursor: "pointer",
+    background: "#ffffff",
     boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
     transition: "transform 120ms ease",
-    zIndex: "2147483000",
-    background: "#fff"
+    zIndex: "2147483000"
   });
+  Object.assign(btn.style, anchors[cfg.position] || anchors["bottom-right"]);
   btn.onpointerdown = function () { btn.style.transform = "scale(1.06) rotate(6deg)"; };
   btn.onpointerup   = function () { btn.style.transform = "scale(1)"; };
-  Object.assign(btn.style, anchors[cfg.position] || anchors["bottom-right"]);
-
-  // mic icon (customizable)
-  btn.innerHTML =
-    '<img src="' + cfg.iconSrc + '" alt="" aria-hidden="true" style="width:35px;height:35px;display:block;pointer-events:none;" />';
-
+  btn.innerHTML = '<img src="'+ cfg.iconSrc +'" alt="" aria-hidden="true" style="width:35px;height:35px;display:block;pointer-events:none;" />';
   d.body.appendChild(btn);
 
-  // “Powered by Olleh AI” caption
+  // Powered by caption (same positioning model as voice)
   var cap = d.createElement("div");
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
-    position: "fixed",
-    bottom: "4px",
-    marginBottom: "4px",
-    fontSize: "10px",
-    lineHeight: "1",
-    color: "rgba(0,0,0,0.75)",
-    userSelect: "none",
-    pointerEvents: "none",
-    zIndex: "2147483000"
+    position: "fixed", bottom: "4px", marginBottom: "4px",
+    fontSize: "10px", lineHeight: "1", color: "rgba(0,0,0,0.75)",
+    userSelect: "none", pointerEvents: "none", zIndex: "2147483000"
   });
   d.body.appendChild(cap);
-
   function positionCaption(isOpen) {
     var b = btn.getBoundingClientRect();
     var capRect = cap.getBoundingClientRect();
-    var left = b.left + b.width / 2 - capRect.width / 2;
+    var left = b.left + b.width/2 - capRect.width/2;
     left = Math.max(8, Math.min(left, w.innerWidth - capRect.width - 8));
     cap.style.left = left + "px";
-    var gap = isOpen ? 16 : 16;
-    cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + "px";
+    cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - 16)) + "px";
   }
 
-  // Scrim
+  // --- Scrim ---------------------------------------------------------------
   var scrim = d.createElement("div");
   Object.assign(scrim.style, {
-    position: "fixed",
-    inset: "0",
-    background: "rgba(0,0,0,0.25)",
-    opacity: "0",
-    transition: "opacity 200ms ease",
-    pointerEvents: "none",
-    zIndex: "2147482999"
+    position: "fixed", inset: "0", background: "rgba(0,0,0,0.25)",
+    opacity: "0", transition: "opacity 200ms ease",
+    pointerEvents: "none", zIndex: "2147482999"
   });
   d.body.appendChild(scrim);
 
-  // Chat window (colors & shape match voice agent)
+  // --- Chat window (matched look/feel) -------------------------------------
   var win = d.createElement("div");
   win.setAttribute("role", "dialog");
   win.setAttribute("aria-modal", "true");
@@ -302,70 +289,84 @@
     position: "fixed",
     right: "16px",
     bottom: "96px",
-    width: "22rem",
+    width: "22rem",                        // matches voice
     maxWidth: "calc(100vw - 24px)",
-    maxHeight: "80vh",
     background: "transparent",
     borderRadius: "16px",
     boxShadow: "0 20px 50px rgba(0,0,0,0.25)",
-    border: "0",
     overflow: "hidden",
     transform: "translateY(24px)",
     opacity: "0",
     transition: "transform 200ms ease, opacity 200ms ease",
     zIndex: "2147483000",
     display: "flex",
-    flexDirection: "column"
+    flexDirection: "column",
+    maxHeight: "80vh"
   });
+  // exact height parity with voice modal (header ~44px + body 65vh)
+  win.style.height = "calc(65vh + 44px)";
 
-  // Header (same gradient)
+  // Header (same gradient as voice)
   var header = d.createElement("div");
   Object.assign(header.style, {
-    display: "flex",
-    alignItems: "center",
-    justifyContent: "space-between",
+    display: "flex", alignItems: "center", justifyContent: "space-between",
     padding: "10px 12px",
     background: "linear-gradient(90deg, rgb(5,120,190), rgb(7,152,228), rgb(9,180,255))",
     color: "#fff",
     borderTopLeftRadius: "16px",
     borderTopRightRadius: "16px"
   });
-  var title = d.createElement("span");
-  title.textContent = escapeHtml(cfg.title);
+  var title = d.createElement("span"); title.textContent = escapeHtml(cfg.title);
   var closeBtn = d.createElement("button");
-  closeBtn.type = "button";
-  closeBtn.setAttribute("aria-label", "Close");
+  closeBtn.type = "button"; closeBtn.setAttribute("aria-label", "Close");
   Object.assign(closeBtn.style, { padding: "6px", border: "0", background: "transparent", color: "#fff", cursor: "pointer" });
   closeBtn.innerHTML = '<svg viewBox="0 0 640 640" width="20" height="20" fill="currentColor" aria-hidden="true"><path d="M504.6 148.5C515.9 134.9 514.1 114.7 500.5 103.4C486.9 92.1 466.7 93.9 455.4 107.5L320 270L184.6 107.5C173.3 93.9 153.1 92.1 139.5 103.4C125.9 114.7 124.1 134.9 135.4 148.5L278.3 320L135.4 491.5C124.1 505.1 125.9 525.3 139.5 536.6C153.1 547.9 173.3 546.1 184.6 532.5L320 370L455.4 532.5C466.7 546.1 486.9 547.9 500.5 536.6C514.1 525.3 515.9 505.1 504.6 491.5L361.7 320L504.6 148.5z"/></svg>';
   header.appendChild(title); header.appendChild(closeBtn);
 
-  // Body
+  // Body (light content against gradient header, like your chat mock)
   var body = d.createElement("div");
   Object.assign(body.style, {
-    background: "#fff",
+    background: "#ffffff",
     display: "flex",
     flexDirection: "column",
     borderBottomLeftRadius: "16px",
     borderBottomRightRadius: "16px",
-    maxHeight: "calc(80vh - 44px)"
+    height: "65vh",                // match voice body height
+    minHeight: "0"                 // allow flex child to shrink
   });
 
   var msgs = d.createElement("div");
   msgs.id = "rag-chat-messages";
-  Object.assign(msgs.style, { flex: "1", padding: "16px", overflow: "auto", background: "#f8f9fa" });
+  Object.assign(msgs.style, {
+    flex: "1", minHeight: "0",
+    padding: "16px",
+    overflow: "auto",
+    background: "#f8f9fa"
+  });
 
   var inputWrap = d.createElement("div");
-  Object.assign(inputWrap.style, { display: "flex", gap: "8px", borderTop: "1px solid #e9ecef", padding: "12px", background: "#fff" });
+  Object.assign(inputWrap.style, {
+    display: "flex", gap: "8px",
+    borderTop: "1px solid #e9ecef",
+    padding: "12px", background: "#fff"
+  });
 
   var input = d.createElement("input");
   input.id = "rag-input";
   input.placeholder = "Type your question...";
-  Object.assign(input.style, { flex: "1", padding: "10px 12px", border: "1px solid #dee2e6", borderRadius: "20px", fontSize: "14px" });
+  Object.assign(input.style, {
+    flex: "1", padding: "10px 12px",
+    border: "1px solid #dee2e6", borderRadius: "20px", fontSize: "14px"
+  });
 
   var sendBtn = d.createElement("button");
   sendBtn.id = "rag-send";
   sendBtn.textContent = "Send";
-  Object.assign(sendBtn.style, { padding: "10px 14px", border: "none", borderRadius: "20px", color: "#fff", cursor: "pointer", background: "rgb(7,152,228)" });
+  Object.assign(sendBtn.style, {
+    padding: "10px 14px", border: "none", borderRadius: "20px",
+    color: "#fff", cursor: "pointer",
+    background: "rgb(7,152,228)" // same blue as voice header
+  });
 
   inputWrap.appendChild(input);
   inputWrap.appendChild(sendBtn);
@@ -376,22 +377,23 @@
   win.appendChild(body);
   d.body.appendChild(win);
 
-  // state + helpers
+  // --- behavior ------------------------------------------------------------
   var isOpen = false;
-  function escapeHtml(x) { return String(x).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
-  function add(role, text) {
+
+  function escapeHtml(x){ return String(x).replace(/[&<>"']/g, s => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[s])); }
+  function add(role, text){
     var row = d.createElement("div");
-    row.style.cssText = "margin:10px 0;display:flex;" + (role === "user" ? "justify-content:flex-end" : "justify-content:flex-start");
+    row.style.cssText = "margin:10px 0;display:flex;" + (role==="user" ? "justify-content:flex-end" : "justify-content:flex-start");
     var b = d.createElement("div");
     b.textContent = text;
     b.style.cssText = "max-width:80%;padding:10px 12px;border-radius:16px;font-size:14px;line-height:1.4;" +
-      (role === "user" ? "background:rgb(7,152,228);color:#fff" : "background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);color:#333");
+      (role==="user" ? "background:rgb(7,152,228);color:#fff" : "background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.1);color:#333");
     row.appendChild(b);
     msgs.appendChild(row);
     msgs.scrollTop = msgs.scrollHeight;
   }
 
-  function openWin() {
+  function openWin(){
     if (isOpen) return;
     isOpen = true;
     scrim.style.pointerEvents = "auto"; scrim.style.opacity = "1";
@@ -400,38 +402,33 @@
     input.focus();
     positionCaption(true);
   }
-  function closeWin() {
+  function closeWin(){
     if (!isOpen) return;
     isOpen = false;
     scrim.style.opacity = "0"; scrim.style.pointerEvents = "none";
     win.style.opacity = "0"; win.style.transform = "translateY(24px)";
     positionCaption(false);
   }
-  btn.onclick = openWin;
-  closeBtn.onclick = closeWin;
+  btn.onclick = openWin; closeBtn.onclick = closeWin;
 
-  // caption placement + resize
+  // keep caption centered under FAB
   positionCaption(false);
   w.addEventListener("resize", function(){ positionCaption(isOpen); });
 
-  // outside click blocked
+  // block outside click / Esc (same UX as voice)
   d.addEventListener("mousedown", function (e) {
     if (!isOpen) return;
     if (!win.contains(e.target) && !btn.contains(e.target)) {
-      e.preventDefault();
-      e.stopPropagation();
+      e.preventDefault(); e.stopPropagation();
     }
   });
-  // Esc blocked
   d.addEventListener("keydown", function (e) {
     if (!isOpen) return;
-    if (e.key === "Escape") {
-      e.preventDefault();
-      e.stopPropagation();
-    }
+    if (e.key === "Escape") { e.preventDefault(); e.stopPropagation(); }
   });
 
-  async function ask(q) {
+  // --- chat ---------------------------------------------------------------
+  async function ask(q){
     add("user", q);
     var tip = d.createElement("div");
     tip.textContent = "Assistant is typing...";
@@ -442,8 +439,7 @@
       const res = await fetch(cfg.apiBase + "/api/document/chat/rag", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        // IMPORTANT: no user id here
-        body: JSON.stringify({ document_key: cfg.documentKey, message: q })
+        body: JSON.stringify({ document_key: cfg.documentKey, message: q }) // no user id
       });
 
       if (!res.ok || !res.body) {
@@ -469,10 +465,7 @@
           if (!line.trim()) continue;
           try {
             const obj = JSON.parse(line);
-            if (obj.token) {
-              last.textContent += obj.token;
-              msgs.scrollTop = msgs.scrollHeight;
-            }
+            if (obj.token) { last.textContent += obj.token; msgs.scrollTop = msgs.scrollHeight; }
           } catch (_) {}
         }
       }
@@ -482,19 +475,17 @@
     }
   }
 
-  sendBtn.onclick = function () {
+  sendBtn.onclick = function(){
     var q = (input.value || "").trim();
     if (!q) return;
     input.value = "";
     ask(q);
   };
-  input.addEventListener("keypress", function (e) {
-    if (e.key === "Enter") sendBtn.click();
-  });
+  input.addEventListener("keypress", function(e){ if (e.key === "Enter") sendBtn.click(); });
 
   if (cfg.autostart) {
     if (d.readyState === "complete" || d.readyState === "interactive") openWin();
     else d.addEventListener("DOMContentLoaded", openWin);
   }
 })();
-
+</script>
