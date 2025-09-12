@@ -168,7 +168,6 @@
 // })();
 
 <!-- rag-embed.js (host on your CDN) -->
-<script>
 (function () {
   if (window.__RAG_EMBED_LOADED__) return;
   window.__RAG_EMBED_LOADED__ = true;
@@ -488,4 +487,3 @@
     else d.addEventListener("DOMContentLoaded", openWin);
   }
 })();
-</script>
