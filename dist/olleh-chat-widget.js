@@ -105,23 +105,66 @@
   // -------------------------
   // UI Elements
   // -------------------------
-  // Floating chat button
+  // Floating mic button (same as voice)
   var btn = d.createElement("button");
   btn.type = "button";
-  btn.innerHTML = '<svg xmlns="http://www.w3.org/2000/svg" width="26" height="26" fill="#fff" viewBox="0 0 24 24"><path d="M2 3h20v14H5.17L2 20.17V3zm2 2v11.17L5.17 15H20V5H4z"/></svg>';
+  var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-mic.svg";
+  btn.innerHTML = '<img src="' + iconUrl + '" alt="Olleh AI" style="width:32px;height:32px;pointer-events:none;" />';
   Object.assign(btn.style, {
     position: "fixed", right: "24px", bottom: "24px",
     width: "56px", height: "56px", borderRadius: "50%",
-    background: "linear-gradient(135deg,#2563eb,#3b82f6)",
+    background: "#fff",
     display: "flex", alignItems: "center", justifyContent: "center",
-    border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.2)",
+    border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
     zIndex: "2147483647", transition: "transform 120ms ease"
   });
-  btn.onpointerdown = () => (btn.style.transform = "scale(1.05)");
+  btn.onpointerdown = () => (btn.style.transform = "scale(1.06)");
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
   d.body.appendChild(btn);
 
-  // Modal
+  // Beat animation
+  if (!d.getElementById("olleh-chat-anim")) {
+    var st = d.createElement("style");
+    st.id = "olleh-chat-anim";
+    st.textContent = `
+      button[aria-label="Open Olleh Chat"]::after {
+        content:"";
+        position:absolute;
+        inset:-6px;
+        border-radius:9999px;
+        pointer-events:none;
+        box-shadow:0 0 0 0 rgba(59,130,246,0.55);
+        animation:ollehBeat 1.6s ease-out infinite;
+      }
+      @keyframes ollehBeat {
+        0%   { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.55); }
+        60%  { transform:scale(1.08); box-shadow:0 0 0 14px rgba(59,130,246,0.00); }
+        100% { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.00); }
+      }
+    `;
+    d.head.appendChild(st);
+  }
+
+  // Caption
+  var cap = d.createElement("div");
+  cap.textContent = "Powered by Olleh AI";
+  Object.assign(cap.style, {
+    position: "fixed", bottom: "4px", fontSize: "10px",
+    color: "rgba(0,0,0,0.65)", userSelect: "none",
+    pointerEvents: "none", zIndex: "2147483647"
+  });
+  d.body.appendChild(cap);
+  function positionCaption() {
+    var b = btn.getBoundingClientRect();
+    var capRect = cap.getBoundingClientRect();
+    var left = b.left + b.width / 2 - capRect.width / 2;
+    left = Math.max(8, Math.min(left, w.innerWidth - capRect.width - 8));
+    cap.style.left = left + "px";
+  }
+  positionCaption();
+  w.addEventListener("resize", positionCaption);
+
+  // Modal (no header)
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed", right: "16px", bottom: "96px",
@@ -132,22 +175,9 @@
   });
   d.body.appendChild(modal);
 
-  // Header
-  var header = d.createElement("div");
-  header.innerHTML = '<span style="font-weight:600;font-size:14px">Olleh AI Chat</span>';
-  Object.assign(header.style, {
-    padding: "10px 12px", background: "linear-gradient(90deg,#2563eb,#3b82f6)",
-    color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center"
-  });
-  var close = d.createElement("button");
-  close.innerHTML = "✕";
-  Object.assign(close.style, { background: "transparent", border: "none", color: "#fff", fontSize: "16px", cursor: "pointer" });
-  header.appendChild(close);
-  modal.appendChild(header);
-
-  // Iframe body
+  // Iframe
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, { width: "100%", height: "calc(100% - 40px)", border: "none" });
+  Object.assign(iframe.style, { width: "100%", height: "100%", border: "none" });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
@@ -182,5 +212,4 @@
   }
 
   btn.onclick = toggle;
-  close.onclick = closeModal;
 })();
