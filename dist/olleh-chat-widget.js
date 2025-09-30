@@ -69,7 +69,7 @@
       function postJson() {
         return fetch(endpoint, {
           method: "POST",
-          headers: { "Content-Type": "application/json", "allow-origin": location.origin || "" },
+          headers: { "Content-Type": "application/json" },
           body: JSON.stringify(payload)
         });
       }
@@ -96,30 +96,29 @@
       postJson()
         .then(handle)
         .then(resolve)
-        .catch(function (err) {
+        .catch(function () {
           postForm().then(handle).then(resolve).catch(reject);
         });
     });
   }
 
   // -------------------------
-  // UI Elements
+  // Floating launcher button
   // -------------------------
-  // Floating mic button
   var btn = d.createElement("button");
   btn.type = "button";
-  var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-mic.svg";
-  btn.innerHTML = '<img src="' + iconUrl + '" alt="Olleh AI" style="width:32px;height:32px;pointer-events:none;" />';
-  btn.setAttribute("aria-label", "Open Olleh Chat");
+  var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-bot.svg";
+  btn.innerHTML = '<img src="' + iconUrl + '" alt="Chat" style="width:32px;height:32px;pointer-events:none;" />';
   Object.assign(btn.style, {
     position: "fixed", right: "24px", bottom: "24px",
     width: "56px", height: "56px", borderRadius: "50%",
-    background: "#fff",
+    background: "#2563eb",
     display: "flex", alignItems: "center", justifyContent: "center",
-    border: "none", cursor: "pointer", boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+    border: "none", cursor: "pointer",
+    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
     zIndex: "2147483647", transition: "transform 120ms ease"
   });
-  btn.onpointerdown = () => (btn.style.transform = "scale(1.06)");
+  btn.onpointerdown = () => (btn.style.transform = "scale(1.05)");
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
   d.body.appendChild(btn);
 
@@ -128,25 +127,28 @@
     var st = d.createElement("style");
     st.id = "olleh-chat-anim";
     st.textContent = `
-      button[aria-label="Open Olleh Chat"]::after {
+      .olleh-chat-btn::after {
         content:"";
         position:absolute;
         inset:-6px;
         border-radius:9999px;
         pointer-events:none;
-        box-shadow:0 0 0 0 rgba(59,130,246,0.55);
+        box-shadow:0 0 0 0 rgba(37,99,235,0.55);
         animation:ollehBeat 1.6s ease-out infinite;
       }
       @keyframes ollehBeat {
-        0%   { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.55); }
-        60%  { transform:scale(1.08); box-shadow:0 0 0 14px rgba(59,130,246,0.00); }
-        100% { transform:scale(1);    box-shadow:0 0 0 0   rgba(59,130,246,0.00); }
+        0%   { transform:scale(1);    box-shadow:0 0 0 0   rgba(37,99,235,0.55); }
+        60%  { transform:scale(1.08); box-shadow:0 0 0 14px rgba(37,99,235,0.00); }
+        100% { transform:scale(1);    box-shadow:0 0 0 0   rgba(37,99,235,0.00); }
       }
     `;
     d.head.appendChild(st);
   }
+  btn.classList.add("olleh-chat-btn");
 
+  // -------------------------
   // Caption
+  // -------------------------
   var cap = d.createElement("div");
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
@@ -165,56 +167,26 @@
   positionCaption();
   w.addEventListener("resize", positionCaption);
 
-  // Backdrop
-  var backdrop = d.createElement("div");
-  Object.assign(backdrop.style, {
-    position: "fixed", inset: "0", background: "rgba(0,0,0,0.2)",
-    opacity: "0", zIndex: "2147483646", transition: "opacity 200ms ease",
-    pointerEvents: "none"
-  });
-  d.body.appendChild(backdrop);
-
-  // Modal
+  // -------------------------
+  // Modal (clean modern style)
+  // -------------------------
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed", right: "16px", bottom: "96px",
-    width: "100%", maxWidth: "420px",
-    height: "70vh", maxHeight: "600px",
+    width: "380px", maxWidth: "calc(100vw - 32px)", height: "75vh",
     background: "#fff", borderRadius: "16px", overflow: "hidden",
-    boxShadow: "0 20px 50px rgba(0,0,0,0.25)", zIndex: "2147483647",
-    transform: "translateY(24px)", opacity: "0", transition: "all 200ms ease"
+    boxShadow: "0 10px 40px rgba(0,0,0,0.2)", zIndex: "2147483647",
+    transform: "translateY(24px)", opacity: "0", transition: "all 200ms ease",
+    display: "flex", flexDirection: "column"
   });
   d.body.appendChild(modal);
 
-  // Iframe
+  // Iframe (chat UI fills entire box)
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, { width: "100%", height: "100%", border: "none" });
+  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none" });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
-
-  // Responsive resize
-  function resizeModal() {
-    if (w.innerWidth < 480) {
-      modal.style.right = "0";
-      modal.style.bottom = "0";
-      modal.style.width = "100%";
-      modal.style.height = "100%";
-      modal.style.maxWidth = "100%";
-      modal.style.maxHeight = "100%";
-      modal.style.borderRadius = "0";
-    } else {
-      modal.style.right = "16px";
-      modal.style.bottom = "96px";
-      modal.style.width = "100%";
-      modal.style.maxWidth = "420px";
-      modal.style.height = "70vh";
-      modal.style.maxHeight = "600px";
-      modal.style.borderRadius = "16px";
-    }
-  }
-  resizeModal();
-  w.addEventListener("resize", resizeModal);
 
   // -------------------------
   // Modal toggle with token
@@ -223,8 +195,6 @@
   function openModal() {
     if (isOpen) return;
     isOpen = true;
-    backdrop.style.opacity = "1";
-    backdrop.style.pointerEvents = "auto";
     modal.style.opacity = "1";
     modal.style.transform = "translateY(0)";
     var baseUrl = stripTokenParam(cfg.iframeSrc);
@@ -240,8 +210,6 @@
   function closeModal() {
     if (!isOpen) return;
     isOpen = false;
-    backdrop.style.opacity = "0";
-    backdrop.style.pointerEvents = "none";
     modal.style.opacity = "0";
     modal.style.transform = "translateY(24px)";
   }
@@ -250,5 +218,4 @@
   }
 
   btn.onclick = toggle;
-  backdrop.onclick = closeModal;
 })();
