@@ -105,11 +105,12 @@
   // -------------------------
   // UI Elements
   // -------------------------
-  // Floating mic button (same as voice)
+  // Floating mic button
   var btn = d.createElement("button");
   btn.type = "button";
   var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-mic.svg";
   btn.innerHTML = '<img src="' + iconUrl + '" alt="Olleh AI" style="width:32px;height:32px;pointer-events:none;" />';
+  btn.setAttribute("aria-label", "Open Olleh Chat");
   Object.assign(btn.style, {
     position: "fixed", right: "24px", bottom: "24px",
     width: "56px", height: "56px", borderRadius: "50%",
@@ -164,11 +165,21 @@
   positionCaption();
   w.addEventListener("resize", positionCaption);
 
-  // Modal (no header)
+  // Backdrop
+  var backdrop = d.createElement("div");
+  Object.assign(backdrop.style, {
+    position: "fixed", inset: "0", background: "rgba(0,0,0,0.2)",
+    opacity: "0", zIndex: "2147483646", transition: "opacity 200ms ease",
+    pointerEvents: "none"
+  });
+  d.body.appendChild(backdrop);
+
+  // Modal
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed", right: "16px", bottom: "96px",
-    width: "22rem", maxWidth: "calc(100vw - 24px)", height: "70vh",
+    width: "100%", maxWidth: "420px",
+    height: "70vh", maxHeight: "600px",
     background: "#fff", borderRadius: "16px", overflow: "hidden",
     boxShadow: "0 20px 50px rgba(0,0,0,0.25)", zIndex: "2147483647",
     transform: "translateY(24px)", opacity: "0", transition: "all 200ms ease"
@@ -182,6 +193,29 @@
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
 
+  // Responsive resize
+  function resizeModal() {
+    if (w.innerWidth < 480) {
+      modal.style.right = "0";
+      modal.style.bottom = "0";
+      modal.style.width = "100%";
+      modal.style.height = "100%";
+      modal.style.maxWidth = "100%";
+      modal.style.maxHeight = "100%";
+      modal.style.borderRadius = "0";
+    } else {
+      modal.style.right = "16px";
+      modal.style.bottom = "96px";
+      modal.style.width = "100%";
+      modal.style.maxWidth = "420px";
+      modal.style.height = "70vh";
+      modal.style.maxHeight = "600px";
+      modal.style.borderRadius = "16px";
+    }
+  }
+  resizeModal();
+  w.addEventListener("resize", resizeModal);
+
   // -------------------------
   // Modal toggle with token
   // -------------------------
@@ -189,6 +223,8 @@
   function openModal() {
     if (isOpen) return;
     isOpen = true;
+    backdrop.style.opacity = "1";
+    backdrop.style.pointerEvents = "auto";
     modal.style.opacity = "1";
     modal.style.transform = "translateY(0)";
     var baseUrl = stripTokenParam(cfg.iframeSrc);
@@ -204,6 +240,8 @@
   function closeModal() {
     if (!isOpen) return;
     isOpen = false;
+    backdrop.style.opacity = "0";
+    backdrop.style.pointerEvents = "none";
     modal.style.opacity = "0";
     modal.style.transform = "translateY(24px)";
   }
@@ -212,4 +250,5 @@
   }
 
   btn.onclick = toggle;
+  backdrop.onclick = closeModal;
 })();
