@@ -87,7 +87,7 @@
   Object.assign(btn.style, {
     position: "fixed", right: "20px", bottom: "20px",
     width: "52px", height: "52px", borderRadius: "50%",
-    background: "#2563eb",
+    background: "#ffffff",
     display: "flex", alignItems: "center", justifyContent: "center",
     border: "none", cursor: "pointer",
     boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
