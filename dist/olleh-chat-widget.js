@@ -57,7 +57,6 @@
   function fetchSessionToken(endpoint, clientToken, sessionId) {
     return new Promise(function (resolve, reject) {
       if (!endpoint || !clientToken) return reject(new Error("missing endpoint or client token"));
-
       var payload = { token: clientToken, session_id: sessionId, origin: location.origin || "" };
 
       function handle(r) {
@@ -79,7 +78,7 @@
   }
 
   // -------------------------
-  // Floating launcher button
+  // Floating button
   // -------------------------
   var btn = d.createElement("button");
   btn.type = "button";
@@ -98,9 +97,7 @@
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
   d.body.appendChild(btn);
 
-  // -------------------------
   // Caption
-  // -------------------------
   var cap = d.createElement("div");
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
@@ -120,41 +117,27 @@
   w.addEventListener("resize", positionCaption);
 
   // -------------------------
-  // Modal (modern chat style)
+  // Modal (iframe only)
   // -------------------------
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed", right: "16px", bottom: "80px",
     width: "340px", maxWidth: "calc(100vw - 32px)", height: "70vh",
-    background: "#f9fafb", borderRadius: "14px", overflow: "hidden",
+    background: "#fff", borderRadius: "14px", overflow: "hidden",
     boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: "2147483647",
     transform: "translateY(20px)", opacity: "0", transition: "all 200ms ease",
-    display: "flex", flexDirection: "column", fontFamily: "Inter, system-ui, sans-serif"
+    display: "flex", flexDirection: "column", padding: "0", margin: "0"
   });
   d.body.appendChild(modal);
 
-  // Header
-  var header = d.createElement("div");
-  header.innerHTML = '<span style="font-weight:600;font-size:13px">💬 Olleh AI Assistant</span><button style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;">✕</button>';
-  Object.assign(header.style, {
-    padding: "8px 12px", background: "#2563eb",
-    color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center",
-    fontSize: "13px"
-  });
-  modal.appendChild(header);
-
-  var closeBtn = header.querySelector("button");
-
-  // Iframe
+  // Iframe only (no extra header, no spacing)
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none", fontSize: "13px" });
+  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none", margin: "0", padding: "0" });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
 
-  // -------------------------
-  // Modal toggle
-  // -------------------------
+  // Toggle modal
   var isOpen = false;
   function openModal() {
     if (isOpen) return;
@@ -176,5 +159,4 @@
   function toggle() { isOpen ? closeModal() : openModal(); }
 
   btn.onclick = toggle;
-  closeBtn.onclick = closeModal;
 })();
