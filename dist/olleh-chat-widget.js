@@ -122,7 +122,7 @@
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed", right: "16px", bottom: "80px",
-    width: "340px", maxWidth: "calc(100vw - 32px)", height: "70vh",
+    width: "340px", maxWidth: "calc(100vw - 32px)", height: "90vh",
     background: "#fff", borderRadius: "14px", overflow: "hidden",
     boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: "2147483647",
     transform: "translateY(20px)", opacity: "0", transition: "all 200ms ease",
