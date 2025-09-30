@@ -14,7 +14,7 @@
   w.__OLLEH_CHAT_ACTIVE__ = true;
 
   // -------------------------
-  // Session helpers
+  // Helpers
   // -------------------------
   function getSessionId() {
     try {
@@ -56,36 +56,12 @@
 
   function fetchSessionToken(endpoint, clientToken, sessionId) {
     return new Promise(function (resolve, reject) {
-      if (!endpoint || !clientToken) {
-        return reject(new Error("missing endpoint or client token"));
-      }
+      if (!endpoint || !clientToken) return reject(new Error("missing endpoint or client token"));
 
-      var payload = {
-        token: clientToken,
-        session_id: sessionId,
-        origin: location.origin || ""
-      };
+      var payload = { token: clientToken, session_id: sessionId, origin: location.origin || "" };
 
-      function postJson() {
-        return fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify(payload)
-        });
-      }
-      function postForm() {
-        return fetch(endpoint, {
-          method: "POST",
-          headers: { "Content-Type": "application/x-www-form-urlencoded" },
-          body: new URLSearchParams(payload)
-        });
-      }
       function handle(r) {
-        if (!r.ok) {
-          return r.text().then(function (t) {
-            throw new Error("http " + r.status + ", " + t);
-          });
-        }
+        if (!r.ok) return r.text().then(function (t) { throw new Error("http " + r.status + ", " + t); });
         return r.json().then(function (j) {
           var t = j && j.data && j.data.token;
           if (!t) throw new Error("no token in response");
@@ -93,11 +69,11 @@
         });
       }
 
-      postJson()
-        .then(handle)
-        .then(resolve)
+      fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) })
+        .then(handle).then(resolve)
         .catch(function () {
-          postForm().then(handle).then(resolve).catch(reject);
+          fetch(endpoint, { method: "POST", headers: { "Content-Type": "application/x-www-form-urlencoded" }, body: new URLSearchParams(payload) })
+            .then(handle).then(resolve).catch(reject);
         });
     });
   }
@@ -108,43 +84,19 @@
   var btn = d.createElement("button");
   btn.type = "button";
   var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-bot.svg";
-  btn.innerHTML = '<img src="' + iconUrl + '" alt="Chat" style="width:32px;height:32px;pointer-events:none;" />';
+  btn.innerHTML = '<img src="' + iconUrl + '" alt="Chat" style="width:28px;height:28px;pointer-events:none;" />';
   Object.assign(btn.style, {
-    position: "fixed", right: "24px", bottom: "24px",
-    width: "56px", height: "56px", borderRadius: "50%",
+    position: "fixed", right: "20px", bottom: "20px",
+    width: "52px", height: "52px", borderRadius: "50%",
     background: "#2563eb",
     display: "flex", alignItems: "center", justifyContent: "center",
     border: "none", cursor: "pointer",
-    boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
+    boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
     zIndex: "2147483647", transition: "transform 120ms ease"
   });
   btn.onpointerdown = () => (btn.style.transform = "scale(1.05)");
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
   d.body.appendChild(btn);
-
-  // Beat animation
-  if (!d.getElementById("olleh-chat-anim")) {
-    var st = d.createElement("style");
-    st.id = "olleh-chat-anim";
-    st.textContent = `
-      .olleh-chat-btn::after {
-        content:"";
-        position:absolute;
-        inset:-6px;
-        border-radius:9999px;
-        pointer-events:none;
-        box-shadow:0 0 0 0 rgba(37,99,235,0.55);
-        animation:ollehBeat 1.6s ease-out infinite;
-      }
-      @keyframes ollehBeat {
-        0%   { transform:scale(1);    box-shadow:0 0 0 0   rgba(37,99,235,0.55); }
-        60%  { transform:scale(1.08); box-shadow:0 0 0 14px rgba(37,99,235,0.00); }
-        100% { transform:scale(1);    box-shadow:0 0 0 0   rgba(37,99,235,0.00); }
-      }
-    `;
-    d.head.appendChild(st);
-  }
-  btn.classList.add("olleh-chat-btn");
 
   // -------------------------
   // Caption
@@ -153,7 +105,7 @@
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
     position: "fixed", bottom: "4px", fontSize: "10px",
-    color: "rgba(0,0,0,0.65)", userSelect: "none",
+    color: "rgba(0,0,0,0.55)", userSelect: "none",
     pointerEvents: "none", zIndex: "2147483647"
   });
   d.body.appendChild(cap);
@@ -168,28 +120,40 @@
   w.addEventListener("resize", positionCaption);
 
   // -------------------------
-  // Modal (clean modern style)
+  // Modal (modern chat style)
   // -------------------------
   var modal = d.createElement("div");
   Object.assign(modal.style, {
-    position: "fixed", right: "16px", bottom: "96px",
-    width: "380px", maxWidth: "calc(100vw - 32px)", height: "75vh",
-    background: "#fff", borderRadius: "16px", overflow: "hidden",
-    boxShadow: "0 10px 40px rgba(0,0,0,0.2)", zIndex: "2147483647",
-    transform: "translateY(24px)", opacity: "0", transition: "all 200ms ease",
-    display: "flex", flexDirection: "column"
+    position: "fixed", right: "16px", bottom: "80px",
+    width: "340px", maxWidth: "calc(100vw - 32px)", height: "70vh",
+    background: "#f9fafb", borderRadius: "14px", overflow: "hidden",
+    boxShadow: "0 8px 30px rgba(0,0,0,0.25)", zIndex: "2147483647",
+    transform: "translateY(20px)", opacity: "0", transition: "all 200ms ease",
+    display: "flex", flexDirection: "column", fontFamily: "Inter, system-ui, sans-serif"
   });
   d.body.appendChild(modal);
 
-  // Iframe (chat UI fills entire box)
+  // Header
+  var header = d.createElement("div");
+  header.innerHTML = '<span style="font-weight:600;font-size:13px">💬 Olleh AI Assistant</span><button style="background:none;border:none;color:#fff;font-size:16px;cursor:pointer;">✕</button>';
+  Object.assign(header.style, {
+    padding: "8px 12px", background: "#2563eb",
+    color: "#fff", display: "flex", justifyContent: "space-between", alignItems: "center",
+    fontSize: "13px"
+  });
+  modal.appendChild(header);
+
+  var closeBtn = header.querySelector("button");
+
+  // Iframe
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none" });
+  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none", fontSize: "13px" });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
 
   // -------------------------
-  // Modal toggle with token
+  // Modal toggle
   // -------------------------
   var isOpen = false;
   function openModal() {
@@ -200,22 +164,17 @@
     var baseUrl = stripTokenParam(cfg.iframeSrc);
     var sid = getSessionId();
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
-      .then(function (tkn) {
-        iframe.src = buildIframeUrl(baseUrl, tkn);
-      })
-      .catch(function () {
-        iframe.src = cfg.iframeSrc;
-      });
+      .then(function (tkn) { iframe.src = buildIframeUrl(baseUrl, tkn); })
+      .catch(function () { iframe.src = cfg.iframeSrc; });
   }
   function closeModal() {
     if (!isOpen) return;
     isOpen = false;
     modal.style.opacity = "0";
-    modal.style.transform = "translateY(24px)";
+    modal.style.transform = "translateY(20px)";
   }
-  function toggle() {
-    isOpen ? closeModal() : openModal();
-  }
+  function toggle() { isOpen ? closeModal() : openModal(); }
 
   btn.onclick = toggle;
+  closeBtn.onclick = closeModal;
 })();
