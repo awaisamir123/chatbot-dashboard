@@ -8,7 +8,7 @@
     sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
     allow: script?.dataset.ollehAllow || "microphone; autoplay",
     sandbox: script?.dataset.ollehSandbox || "allow-scripts allow-forms allow-same-origin",
-    brandText: script?.dataset.brandText || "Olleh AI Assistant",
+    brandText: script?.dataset.brandText || "MY Olleh AI Assistant",
     primaryColor: script?.dataset.primaryColor || "#0798e4",
     secondaryColor: script?.dataset.secondaryColor || "#000",
     iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png"
