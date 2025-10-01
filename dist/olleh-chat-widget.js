@@ -7,7 +7,10 @@
     clientToken: script?.dataset.ollehClientToken || "",
     sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
     allow: script?.dataset.ollehAllow || "microphone; autoplay",
-    sandbox: script?.dataset.ollehSandbox || "allow-scripts allow-forms allow-same-origin"
+    sandbox: script?.dataset.ollehSandbox || "allow-scripts allow-forms allow-same-origin",
+    primaryColor: script?.dataset.primaryColor || "#667eea",
+    secondaryColor: script?.dataset.secondaryColor || "#764ba2",
+    iconSource: script?.dataset.iconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-bot.svg"
   };
 
   if (w.__OLLEH_CHAT_ACTIVE__) return;
@@ -21,9 +24,7 @@
       var key = "olleh_ai_session_id";
       var sid = sessionStorage.getItem(key);
       if (!sid) {
-        sid = (w.crypto && crypto.randomUUID)
-          ? crypto.randomUUID()
-          : "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        sid = (w.crypto && crypto.randomUUID) ? crypto.randomUUID() : "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
         sessionStorage.setItem(key, sid);
       }
       return sid;
@@ -47,10 +48,13 @@
     try {
       var u = new URL(baseUrl || "http://localhost:3000/chat", location.href);
       if (token) u.searchParams.set("token", token);
+      u.searchParams.set("primary_color", cfg.primaryColor);
+      u.searchParams.set("secondary_color", cfg.secondaryColor);
+      u.searchParams.set("icon_src", cfg.iconSource);
       return u.toString();
     } catch (e) {
       var joiner = baseUrl.indexOf("?") > -1 ? "&" : "?";
-      return baseUrl + joiner + "token=" + encodeURIComponent(token || "");
+      return baseUrl + joiner + "token=" + encodeURIComponent(token || "") + "&primary_color=" + encodeURIComponent(cfg.primaryColor) + "&secondary_color=" + encodeURIComponent(cfg.secondaryColor) + "&icon_src=" + encodeURIComponent(cfg.iconSource);
     }
   }
 
@@ -82,30 +86,28 @@
   // -------------------------
   var btn = d.createElement("button");
   btn.type = "button";
-  var iconUrl = script?.dataset.ollehIconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-bot.svg";
+  btn.setAttribute("aria-label", "Open Olleh AI Assistant");
+  var iconUrl = cfg.iconSource;
   btn.innerHTML = '<img src="' + iconUrl + '" alt="Chat" style="width:28px;height:28px;pointer-events:none;" />';
   Object.assign(btn.style, {
-    position: "fixed", right: "20px", bottom: "20px",
-    width: "52px", height: "52px", borderRadius: "50%",
-    background: "#ffffff",
-    display: "flex", alignItems: "center", justifyContent: "center",
-    border: "none", cursor: "pointer",
-    boxShadow: "0 6px 20px rgba(0,0,0,0.25)",
-    zIndex: "2147483647", transition: "transform 120ms ease"
+    position: "fixed", right: "20px", bottom: "20px", width: "52px", height: "52px",
+    borderRadius: "50%", background: "#ffffff", display: "flex", alignItems: "center",
+    justifyContent: "center", border: "none", cursor: "pointer",
+    boxShadow: "0 6px 20px rgba(0,0,0,0.25)", zIndex: "2147483647", transition: "transform 120ms ease"
   });
   btn.onpointerdown = () => (btn.style.transform = "scale(1.05)");
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
   d.body.appendChild(btn);
 
-  // Caption
+  // Caption under the mic icon (dynamic styling with primary color)
   var cap = d.createElement("div");
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
     position: "fixed", bottom: "4px", fontSize: "10px",
-    color: "rgba(0,0,0,0.55)", userSelect: "none",
-    pointerEvents: "none", zIndex: "2147483647"
+    color: "rgba(0,0,0,0.55)", userSelect: "none", pointerEvents: "none", zIndex: "2147483647"
   });
   d.body.appendChild(cap);
+
   function positionCaption() {
     var b = btn.getBoundingClientRect();
     var capRect = cap.getBoundingClientRect();
@@ -113,11 +115,12 @@
     left = Math.max(8, Math.min(left, w.innerWidth - capRect.width - 8));
     cap.style.left = left + "px";
   }
+
   positionCaption();
   w.addEventListener("resize", positionCaption);
 
   // -------------------------
-  // Modal (iframe only)
+  // Modal with iframe (dynamic content)
   // -------------------------
   var modal = d.createElement("div");
   Object.assign(modal.style, {
@@ -150,12 +153,14 @@
       .then(function (tkn) { iframe.src = buildIframeUrl(baseUrl, tkn); })
       .catch(function () { iframe.src = cfg.iframeSrc; });
   }
+
   function closeModal() {
     if (!isOpen) return;
     isOpen = false;
     modal.style.opacity = "0";
     modal.style.transform = "translateY(20px)";
   }
+
   function toggle() { isOpen ? closeModal() : openModal(); }
 
   btn.onclick = toggle;
