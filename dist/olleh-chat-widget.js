@@ -11,7 +11,7 @@
     brandText: script?.dataset.brand_text || "Olleh AI Assistant",
     primaryColor: script?.dataset.primaryColor || "#0798e4",
     secondaryColor: script?.dataset.secondaryColor || "#000",
-    iconSource: script?.dataset.iconSource"
+    iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png"
   };
 
   if (w.__OLLEH_CHAT_ACTIVE__) return;
