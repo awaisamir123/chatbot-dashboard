@@ -8,9 +8,10 @@
     sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
     allow: script?.dataset.ollehAllow || "microphone; autoplay",
     sandbox: script?.dataset.ollehSandbox || "allow-scripts allow-forms allow-same-origin",
-    primaryColor: script?.dataset.primaryColor || "#667eea",
-    secondaryColor: script?.dataset.secondaryColor || "#764ba2",
-    iconSource: script?.dataset.iconSource || "https://cdn.jsdelivr.net/gh/MuhammadAwaisAli/olleh-ai-agent/dist/olleh-bot.svg"
+    brandText: script?.dataset.brand_text || "Olleh AI Assistant",
+    primaryColor: script?.dataset.primaryColor || "#0798e4",
+    secondaryColor: script?.dataset.secondaryColor || "#000",
+    iconSource: script?.dataset.iconSource"
   };
 
   if (w.__OLLEH_CHAT_ACTIVE__) return;
@@ -48,13 +49,14 @@
     try {
       var u = new URL(baseUrl || "http://localhost:3000/chat", location.href);
       if (token) u.searchParams.set("token", token);
+      u.searchParams.set("brand_text", cfg.brandText);
       u.searchParams.set("primary_color", cfg.primaryColor);
       u.searchParams.set("secondary_color", cfg.secondaryColor);
       u.searchParams.set("icon_src", cfg.iconSource);
       return u.toString();
     } catch (e) {
       var joiner = baseUrl.indexOf("?") > -1 ? "&" : "?";
-      return baseUrl + joiner + "token=" + encodeURIComponent(token || "") + "&primary_color=" + encodeURIComponent(cfg.primaryColor) + "&secondary_color=" + encodeURIComponent(cfg.secondaryColor) + "&icon_src=" + encodeURIComponent(cfg.iconSource);
+      return baseUrl + joiner + "token=" + encodeURIComponent(token || "") + "&brand_text=" + encodeURIComponent(cfg.brandText) + "&primary_color=" + encodeURIComponent(cfg.primaryColor) + "&secondary_color=" + encodeURIComponent(cfg.secondaryColor) + "&icon_src=" + encodeURIComponent(cfg.iconSource);
     }
   }
 
