@@ -3,7 +3,7 @@
   var script = d.currentScript;
 
   var cfg = {
-    iframeSrc: script?.dataset.ollehIframeSrc || "http://localhost:3000/chat",
+    iframeSrc: script?.dataset.ollehIframeSrc || "https://olleh.ai/chat",
     clientToken: script?.dataset.ollehClientToken || "",
     sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
     allow: script?.dataset.ollehAllow || "microphone; autoplay",
@@ -47,7 +47,7 @@
 
   function buildIframeUrl(baseUrl, token) {
     try {
-      var u = new URL(baseUrl || "http://localhost:3000/chat", location.href);
+      var u = new URL(baseUrl || https://olleh.ai/chat", location.href);
       if (token) u.searchParams.set("token", token);
       u.searchParams.set("brand_text", cfg.brandText);
       u.searchParams.set("primary_color", cfg.primaryColor);
