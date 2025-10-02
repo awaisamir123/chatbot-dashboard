@@ -170,6 +170,7 @@
 
 
 
+
 (function () {
   var d = document, w = window;
   var script = d.currentScript;
@@ -281,28 +282,44 @@
   });
 
   // Set position based on data-olleh-position value
-  switch (cfg.position) {
-    case "top-left":
-      btn.style.top = "20px";
-      btn.style.left = "20px";
-      break;
-    case "top-right":
-      btn.style.top = "20px";
-      btn.style.right = "20px";
-      break;
-    case "bottom-left":
-      btn.style.bottom = "20px";
-      btn.style.left = "20px";
-      break;
-    case "bottom-right":
-      btn.style.bottom = "20px";
-      btn.style.right = "20px";
-      break;
-    default:
-      btn.style.bottom = "20px";
-      btn.style.right = "20px";
-      break;
+  function setPosition() {
+    const chatModal = document.querySelector(".chat-modal"); // Ensure the chat modal has a class to check its height/position
+    switch (cfg.position) {
+      case "top-left":
+        btn.style.top = "20px";
+        btn.style.left = "20px";
+        break;
+      case "top-right":
+        btn.style.top = "20px";
+        btn.style.right = "20px";
+        break;
+      case "bottom-left":
+        btn.style.bottom = "80px";
+        btn.style.left = "20px";
+        break;
+      case "bottom-right":
+        btn.style.bottom = "80px";
+        btn.style.right = "20px";
+        break;
+      default:
+        btn.style.bottom = "80px";
+        btn.style.right = "20px";
+        break;
+    }
+    // Ensure button stays above the modal when it's open
+    if (chatModal) {
+      const chatModalRect = chatModal.getBoundingClientRect();
+      const buttonRect = btn.getBoundingClientRect();
+
+      if (buttonRect.bottom > chatModalRect.top) {
+        btn.style.bottom = `${chatModalRect.height + 20}px`; // Push button up
+      }
+    }
   }
+
+  // Set position on load and resize
+  setPosition();
+  w.addEventListener("resize", setPosition);
 
   btn.onpointerdown = () => (btn.style.transform = "scale(1.05)");
   btn.onpointerup = () => (btn.style.transform = "scale(1)");
@@ -379,4 +396,5 @@
 
   btn.onclick = toggle;
 })();
+
 
