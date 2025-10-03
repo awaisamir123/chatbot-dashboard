@@ -430,32 +430,48 @@
   btn.onpointerup = function() { btn.style.transform = "scale(1)"; };
   d.body.appendChild(btn);
 
-  // Caption
-  // Caption under/near the chat floating button
-var cap = d.createElement("div");
-cap.textContent = "Powered by Olleh AI";
-Object.assign(cap.style, {
-  position: "fixed",
-  bottom: "4px",             // same spacing as voice script
-  fontSize: "10px",           // same font size
-  lineHeight: "1",            // consistent line height
-  color: "rgba(0,0,0,0.75)",  // same color as voice script
-  userSelect: "none",
-  pointerEvents: "none",
-  zIndex: "2147483000"        // ensures above other elements but below floating button
-});
-d.body.appendChild(cap);
+  // caption under the mic
+  var cap = d.createElement('div');
+  cap.textContent = 'Powered by Olleh AI';
+  Object.assign(cap.style, {
+    position: 'fixed',
+    bottom: '4px',
+    marginBottom: '4px',
+    fontSize: '10px',
+    lineHeight: '1',
+    color: 'rgba(0,0,0,0.75)',
+    userSelect: 'none',
+    pointerEvents: 'none',
+    zIndex: '2147483000'
+  });
+  d.body.appendChild(cap);
 
-// Position the caption centered under the button
-function positionCaption() {
-  var b = btn.getBoundingClientRect();
-  var left = b.left + b.width / 2 - cap.offsetWidth / 2;
-  left = Math.max(8, Math.min(left, w.innerWidth - cap.offsetWidth - 8));
-  cap.style.left = left + "px";
-  cap.style.bottom = "4px";  // always fixed, does not change on open/close
-}
-positionCaption();
-w.addEventListener("resize", positionCaption);
+  function positionCaption(){
+    var b = btn.getBoundingClientRect();
+    var capRect = cap.getBoundingClientRect();
+
+    var left = b.left + b.width / 2 - capRect.width / 2;
+    left = Math.max(8, Math.min(left, w.innerWidth - capRect.width - 8));
+    cap.style.left = left + 'px';
+
+    if (isOpen) {
+      var gap = 16;
+      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + 'px'; // fixed var name
+    } else {
+      var offsetDown = 16;
+      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - offsetDown)) + 'px';
+    }
+  }
+
+  positionCaption();
+  w.addEventListener('resize', positionCaption);
+
+  var scrim = d.createElement('div');
+  Object.assign(scrim.style, {
+    position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.25)', opacity: '0',
+    transition: 'opacity 200ms ease', pointerEvents: 'none', zIndex: '2147482999'
+  });
+  d.body.appendChild(scrim);
 
 
   // -------------------------
