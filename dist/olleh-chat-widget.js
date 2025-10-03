@@ -477,28 +477,28 @@
   // -------------------------
   // Modal with iframe
   // -------------------------
-  var modal = d.createElement("div");
-  Object.assign(modal.style, {
-    position: "fixed",
-    width: "380px",
-    maxWidth: "calc(100vw - 32px)",
-    height: "80vh",
-    maxHeight: "650px",
-    background: "#fff",
-    borderRadius: "14px",
-    overflow: "hidden",
-    boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
-    zIndex: "2147483646", // below button
-    transform: "translateY(20px)",
-    opacity: "0",
-    transition: "all 200ms ease",
-    display: "flex",
-    flexDirection: "column",
-    padding: "0",
-    margin: "0"
-  });
-  Object.assign(modal.style, getModalPosition());
-  d.body.appendChild(modal);
+  // var modal = d.createElement("div");
+  // Object.assign(modal.style, {
+  //   position: "fixed",
+  //   width: "380px",
+  //   maxWidth: "calc(100vw - 32px)",
+  //   height: "80vh",
+  //   maxHeight: "650px",
+  //   background: "#fff",
+  //   borderRadius: "14px",
+  //   overflow: "hidden",
+  //   boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
+  //   zIndex: "2147483646", // below button
+  //   transform: "translateY(20px)",
+  //   opacity: "0",
+  //   transition: "all 200ms ease",
+  //   display: "flex",
+  //   flexDirection: "column",
+  //   padding: "0",
+  //   margin: "0"
+  // });
+  // Object.assign(modal.style, getModalPosition());
+  // d.body.appendChild(modal);
 
   var iframe = d.createElement("iframe");
   Object.assign(iframe.style, { 
