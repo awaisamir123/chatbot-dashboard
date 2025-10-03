@@ -431,27 +431,32 @@
   d.body.appendChild(btn);
 
   // Caption
-  var cap = d.createElement("div");
-  cap.textContent = "Powered by Olleh AI";
-  Object.assign(cap.style, {
-    position: "fixed",
-    bottom: "4px",
-    fontSize: "10px",
-    color: "rgba(0,0,0,0.75)",
-    userSelect: "none",
-    pointerEvents: "none",
-    zIndex: "2147483000",
-  });
-  d.body.appendChild(cap);
+  // Caption under/near the chat floating button
+var cap = d.createElement("div");
+cap.textContent = "Powered by Olleh AI";
+Object.assign(cap.style, {
+  position: "fixed",
+  bottom: "4px",             // same spacing as voice script
+  fontSize: "10px",           // same font size
+  lineHeight: "1",            // consistent line height
+  color: "rgba(0,0,0,0.75)",  // same color as voice script
+  userSelect: "none",
+  pointerEvents: "none",
+  zIndex: "2147483000"        // ensures above other elements but below floating button
+});
+d.body.appendChild(cap);
 
-  function positionCaption() {
-    var b = btn.getBoundingClientRect();
-    var left = b.left + b.width / 2 - cap.offsetWidth / 2;
-    left = Math.max(8, Math.min(left, w.innerWidth - cap.offsetWidth - 8));
-    cap.style.left = left + "px";
-  }
-  positionCaption();
-  w.addEventListener("resize", positionCaption);
+// Position the caption centered under the button
+function positionCaption() {
+  var b = btn.getBoundingClientRect();
+  var left = b.left + b.width / 2 - cap.offsetWidth / 2;
+  left = Math.max(8, Math.min(left, w.innerWidth - cap.offsetWidth - 8));
+  cap.style.left = left + "px";
+  cap.style.bottom = "4px";  // always fixed, does not change on open/close
+}
+positionCaption();
+w.addEventListener("resize", positionCaption);
+
 
   // -------------------------
   // Modal with iframe
