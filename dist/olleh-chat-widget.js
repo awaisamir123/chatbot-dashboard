@@ -282,7 +282,6 @@
 //   handleResize();
 // })();
 
-
 (function () {
   var d = document, w = window;
   var script = d.currentScript;
@@ -297,15 +296,12 @@
     primaryColor: script?.dataset.primaryColor || "#0798e4",
     secondaryColor: script?.dataset.secondaryColor || "#000",
     iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png",
-    buttonPosition: script?.dataset.buttonPosition || "bottom-right" // bottom-right, bottom-left, top-right, top-left
+    buttonPosition: script?.dataset.buttonPosition || "bottom-right" // NEW
   };
 
   if (w.__OLLEH_CHAT_ACTIVE__) return;
   w.__OLLEH_CHAT_ACTIVE__ = true;
 
-  // -------------------------
-  // Helpers
-  // -------------------------
   function getSessionId() {
     try {
       var key = "olleh_ai_session_id";
@@ -370,22 +366,22 @@
   }
 
   // -------------------------
-  // Floating button with animation
+  // Floating button (replicated style + animation)
   // -------------------------
   function getButtonPosition() {
-    switch(cfg.buttonPosition.toLowerCase()) {
-      case "bottom-left": return { left: "24px", bottom: "24px" };
-      case "top-right": return { right: "24px", top: "24px" };
-      case "top-left": return { left: "24px", top: "24px" };
-      default: return { right: "24px", bottom: "24px" };
-    }
+    var pos = cfg.buttonPosition.toLowerCase();
+    if (pos === "bottom-left") return { left: "24px", bottom: "24px", right: "auto", top: "auto" };
+    if (pos === "top-right") return { right: "24px", top: "24px", left: "auto", bottom: "auto" };
+    if (pos === "top-left") return { left: "24px", top: "24px", right: "auto", bottom: "auto" };
+    return { right: "24px", bottom: "24px", left: "auto", top: "auto" }; // default
   }
 
-  var btnPos = getButtonPosition();
   var btn = d.createElement("button");
   btn.type = "button";
   btn.setAttribute("aria-label", "Open Olleh AI Assistant");
-  btn.innerHTML = `<img src="${cfg.iconSource}" alt="" aria-hidden="true" style="width:35px;height:35px;display:block;pointer-events:none;" />`;
+  var iconUrl = cfg.iconSource;
+  btn.innerHTML = '<img src="' + iconUrl + '" alt="" style="width:35px;height:35px;pointer-events:none;display:block;" />';
+
   Object.assign(btn.style, {
     position: "fixed",
     width: "56px",
@@ -398,46 +394,39 @@
     border: "none",
     cursor: "pointer",
     boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-    transition: "transform 120ms ease, opacity 200ms ease",
-    zIndex: "2147483647"
+    zIndex: "2147483647",
+    transition: "transform 120ms ease",
   });
-  Object.assign(btn.style, btnPos);
+  Object.assign(btn.style, getButtonPosition());
 
-  btn.onpointerdown = () => btn.style.transform = "scale(1.06) rotate(6deg)";
-  btn.onpointerup = () => btn.style.transform = "scale(1)";
-  btn.className += " olleh-mic-btn";
-
-  // Beat animation styles
+  // Beat animation
   if (!d.getElementById("olleh-mic-anim")) {
     var st = d.createElement("style");
     st.id = "olleh-mic-anim";
-    st.textContent = `
-      .olleh-mic-btn::after{
-        content:"";
-        position:absolute;
-        inset:-6px;
-        border-radius:9999px;
-        pointer-events:none;
-        box-shadow:0 0 0 0 rgba(59,130,246,0.55);
-        animation:ollehBeat 1.6s ease-out infinite;
-      }
-      @keyframes ollehBeat{
-        0% { transform:scale(1); box-shadow:0 0 0 0 rgba(59,130,246,0.55); }
-        60% { transform:scale(1.08); box-shadow:0 0 0 14px rgba(59,130,246,0); }
-        100% { transform:scale(1); box-shadow:0 0 0 0 rgba(59,130,246,0); }
-      }
-    `;
+    st.textContent = '\
+      .olleh-mic-btn::after{\
+        content:""; position:absolute; inset:-6px; border-radius:9999px;\
+        pointer-events:none; box-shadow:0 0 0 0 rgba(59,130,246,0.55);\
+        animation:ollehBeat 1.6s ease-out infinite;\
+      }\
+      @keyframes ollehBeat{\
+        0% { transform:scale(1); box-shadow:0 0 0 0 rgba(59,130,246,0.55); }\
+        60% { transform:scale(1.08); box-shadow:0 0 0 14px rgba(59,130,246,0.00); }\
+        100% { transform:scale(1); box-shadow:0 0 0 0 rgba(59,130,246,0.00); }\
+      }';
     d.head.appendChild(st);
   }
+  btn.className += " olleh-mic-btn";
   d.body.appendChild(btn);
 
-  // caption
+  // Caption
   var cap = d.createElement("div");
   cap.textContent = "Powered by Olleh AI";
   Object.assign(cap.style, {
     position: "fixed",
+    bottom: "4px",
     fontSize: "10px",
-    color: "rgba(0,0,0,0.55)",
+    color: "rgba(0,0,0,0.75)",
     userSelect: "none",
     pointerEvents: "none",
     zIndex: "2147483647",
@@ -446,25 +435,18 @@
   d.body.appendChild(cap);
 
   function positionCaption() {
-    var btnRect = btn.getBoundingClientRect();
-    var capRect = cap.getBoundingClientRect();
-    var left = btnRect.left + btnRect.width/2 - capRect.width/2;
-    left = Math.max(8, Math.min(left, w.innerWidth - capRect.width - 8));
+    var b = btn.getBoundingClientRect();
+    var left = b.left + b.width / 2 - cap.offsetWidth / 2;
+    left = Math.max(8, Math.min(left, w.innerWidth - cap.offsetWidth - 8));
     cap.style.left = left + "px";
-    if (btnPos.bottom) cap.style.bottom = "4px";
-    if (btnPos.top) cap.style.top = btnRect.bottom + 4 + "px";
+    cap.style.bottom = "4px";
   }
-
   positionCaption();
   w.addEventListener("resize", positionCaption);
 
   // -------------------------
-  // Modal
+  // Modal with iframe
   // -------------------------
-  var modalPos = { ...btnPos };
-  if (modalPos.bottom) modalPos.bottom = "90px";
-  if (modalPos.top) modalPos.top = "90px";
-
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed",
@@ -476,7 +458,7 @@
     borderRadius: "14px",
     overflow: "hidden",
     boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
-    zIndex: "2147483646", // button stays on top
+    zIndex: "2147483646",
     transform: "translateY(20px)",
     opacity: "0",
     transition: "all 200ms ease",
@@ -485,24 +467,14 @@
     padding: "0",
     margin: "0"
   });
-  Object.assign(modal.style, modalPos);
   d.body.appendChild(modal);
 
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, {
-    flex: "1",
-    width: "100%",
-    border: "none",
-    margin: "0",
-    padding: "0"
-  });
+  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none", margin: "0", padding: "0" });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
 
-  // -------------------------
-  // Toggle modal
-  // -------------------------
   var isOpen = false;
 
   function openModal() {
@@ -510,14 +482,12 @@
     isOpen = true;
     modal.style.opacity = "1";
     modal.style.transform = "translateY(0)";
-    btn.style.opacity = "1";
+    btn.style.opacity = "1"; // keep visible
     cap.style.opacity = "0.3";
-
     var baseUrl = stripTokenParam(cfg.iframeSrc);
-    var sid = getSessionId();
-    fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
-      .then(function (tkn) { iframe.src = buildIframeUrl(baseUrl, tkn); })
-      .catch(function () { iframe.src = buildIframeUrl(cfg.iframeSrc, ""); });
+    fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
+      .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
+      .catch(function(){ iframe.src = buildIframeUrl(cfg.iframeSrc, ""); });
   }
 
   function closeModal() {
@@ -531,28 +501,4 @@
 
   function toggleModal() { isOpen ? closeModal() : openModal(); }
   btn.onclick = toggleModal;
-
-  w.addEventListener("resize", function(){
-    positionCaption();
-    if (w.innerWidth < 480) {
-      modal.style.width = "100%";
-      modal.style.height = "100%";
-      modal.style.maxWidth = "100%";
-      modal.style.maxHeight = "100%";
-      modal.style.borderRadius = "0";
-      modal.style.left = "0";
-      modal.style.right = "0";
-      modal.style.top = "0";
-      modal.style.bottom = "0";
-    } else {
-      modal.style.width = "340px";
-      modal.style.height = "80vh";
-      modal.style.maxWidth = "calc(100vw - 32px)";
-      modal.style.maxHeight = "600px";
-      modal.style.borderRadius = "14px";
-      Object.assign(modal.style, modalPos);
-    }
-  });
-
 })();
-
