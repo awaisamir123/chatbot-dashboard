@@ -440,8 +440,7 @@
     color: "rgba(0,0,0,0.75)",
     userSelect: "none",
     pointerEvents: "none",
-    zIndex: "2147483647",
-    transition: "opacity 200ms ease"
+    zIndex: "2147483000",
   });
   d.body.appendChild(cap);
 
