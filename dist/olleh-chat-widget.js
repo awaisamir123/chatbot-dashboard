@@ -282,6 +282,9 @@
 //   handleResize();
 // })();
 
+
+
+
 (function () {
   var d = document, w = window;
   var script = d.currentScript;
@@ -366,7 +369,7 @@
   }
 
   // -------------------------
-  // Floating button (replicated style + animation)
+  // Floating button
   // -------------------------
   function getButtonPosition() {
     var pos = cfg.buttonPosition.toLowerCase();
@@ -387,7 +390,7 @@
     width: "56px",
     height: "56px",
     borderRadius: "9999px",
-    background: "#ffffff",
+    background: "#ffffff", // updated background like chat script
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -426,7 +429,7 @@
     position: "fixed",
     bottom: "4px",
     fontSize: "10px",
-    color: "rgba(0,0,0,0.75)",
+    color: "rgba(0,0,0,0.75)", // updated like chat script
     userSelect: "none",
     pointerEvents: "none",
     zIndex: "2147483647",
@@ -458,7 +461,7 @@
     borderRadius: "14px",
     overflow: "hidden",
     boxShadow: "0 8px 30px rgba(0,0,0,0.25)",
-    zIndex: "2147483646",
+    zIndex: "2147483646", // below button
     transform: "translateY(20px)",
     opacity: "0",
     transition: "all 200ms ease",
@@ -482,8 +485,10 @@
     isOpen = true;
     modal.style.opacity = "1";
     modal.style.transform = "translateY(0)";
-    btn.style.opacity = "1"; // keep visible
+    btn.style.opacity = "1";
+    btn.style.zIndex = "2147483647"; // always above modal
     cap.style.opacity = "0.3";
+
     var baseUrl = stripTokenParam(cfg.iframeSrc);
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
       .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
