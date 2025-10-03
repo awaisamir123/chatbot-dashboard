@@ -517,10 +517,15 @@
   function openModal() {
     if (isOpen) return;
     isOpen = true;
-    modal.style.opacity = "1";
-    modal.style.transform = "translateY(0)";
-    cap.style.opacity = "0.3";
-
+    // modal.style.opacity = "1";
+    // modal.style.transform = "translateY(0)";
+    // cap.style.opacity = "0.3";
+    lastActive = d.activeElement;
+    btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
+    scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
+    modal.style.opacity = '1'; modal.style.transform = 'translateY(0)';
+    d.body.style.overflow = 'hidden';
+    
     var baseUrl = stripTokenParam(cfg.iframeSrc);
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
       .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
