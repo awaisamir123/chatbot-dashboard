@@ -282,9 +282,6 @@
 //   handleResize();
 // })();
 
-
-
-
 (function () {
   var d = document, w = window;
   var script = d.currentScript;
@@ -299,7 +296,7 @@
     primaryColor: script?.dataset.primaryColor || "#0798e4",
     secondaryColor: script?.dataset.secondaryColor || "#000",
     iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png",
-    buttonPosition: script?.dataset.buttonPosition || "bottom-right" // NEW
+    buttonPosition: script?.dataset.buttonPosition || "bottom-right"
   };
 
   if (w.__OLLEH_CHAT_ACTIVE__) return;
@@ -368,17 +365,27 @@
     });
   }
 
-  // -------------------------
-  // Floating button
-  // -------------------------
+  // Position helpers
   function getButtonPosition() {
     var pos = cfg.buttonPosition.toLowerCase();
     if (pos === "bottom-left") return { left: "24px", bottom: "24px", right: "auto", top: "auto" };
     if (pos === "top-right") return { right: "24px", top: "24px", left: "auto", bottom: "auto" };
     if (pos === "top-left") return { left: "24px", top: "24px", right: "auto", bottom: "auto" };
-    return { right: "24px", bottom: "24px", left: "auto", top: "auto" }; // default
+    return { right: "24px", bottom: "24px", left: "auto", top: "auto" };
   }
 
+  function getModalPosition() {
+    var pos = cfg.buttonPosition.toLowerCase();
+    // Position modal so it doesn't overlap the button
+    if (pos === "bottom-left") return { left: "24px", bottom: "100px", right: "auto", top: "auto" };
+    if (pos === "top-right") return { right: "24px", top: "100px", left: "auto", bottom: "auto" };
+    if (pos === "top-left") return { left: "24px", top: "100px", right: "auto", bottom: "auto" };
+    return { right: "24px", bottom: "100px", left: "auto", top: "auto" }; // bottom-right
+  }
+
+  // -------------------------
+  // Floating button
+  // -------------------------
   var btn = d.createElement("button");
   btn.type = "button";
   btn.setAttribute("aria-label", "Open Olleh AI Assistant");
@@ -390,7 +397,7 @@
     width: "56px",
     height: "56px",
     borderRadius: "9999px",
-    background: "#ffffff", // updated background like chat script
+    background: "#ffffff",
     display: "flex",
     alignItems: "center",
     justifyContent: "center",
@@ -398,7 +405,7 @@
     cursor: "pointer",
     boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
     zIndex: "2147483647",
-    transition: "transform 120ms ease",
+    transition: "transform 120ms ease"
   });
   Object.assign(btn.style, getButtonPosition());
 
@@ -420,6 +427,8 @@
     d.head.appendChild(st);
   }
   btn.className += " olleh-mic-btn";
+  btn.onpointerdown = function() { btn.style.transform = "scale(1.05)"; };
+  btn.onpointerup = function() { btn.style.transform = "scale(1)"; };
   d.body.appendChild(btn);
 
   // Caption
@@ -429,7 +438,7 @@
     position: "fixed",
     bottom: "4px",
     fontSize: "10px",
-    color: "rgba(0,0,0,0.75)", // updated like chat script
+    color: "rgba(0,0,0,0.75)",
     userSelect: "none",
     pointerEvents: "none",
     zIndex: "2147483647",
@@ -442,7 +451,6 @@
     var left = b.left + b.width / 2 - cap.offsetWidth / 2;
     left = Math.max(8, Math.min(left, w.innerWidth - cap.offsetWidth - 8));
     cap.style.left = left + "px";
-    cap.style.bottom = "4px";
   }
   positionCaption();
   w.addEventListener("resize", positionCaption);
@@ -453,10 +461,10 @@
   var modal = d.createElement("div");
   Object.assign(modal.style, {
     position: "fixed",
-    width: "340px",
+    width: "380px",
     maxWidth: "calc(100vw - 32px)",
     height: "80vh",
-    maxHeight: "600px",
+    maxHeight: "650px",
     background: "#fff",
     borderRadius: "14px",
     overflow: "hidden",
@@ -470,10 +478,17 @@
     padding: "0",
     margin: "0"
   });
+  Object.assign(modal.style, getModalPosition());
   d.body.appendChild(modal);
 
   var iframe = d.createElement("iframe");
-  Object.assign(iframe.style, { flex: "1", width: "100%", border: "none", margin: "0", padding: "0" });
+  Object.assign(iframe.style, { 
+    flex: "1", 
+    width: "100%", 
+    border: "none", 
+    margin: "0", 
+    padding: "0" 
+  });
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
@@ -485,8 +500,6 @@
     isOpen = true;
     modal.style.opacity = "1";
     modal.style.transform = "translateY(0)";
-    btn.style.opacity = "1";
-    btn.style.zIndex = "2147483647"; // always above modal
     cap.style.opacity = "0.3";
 
     var baseUrl = stripTokenParam(cfg.iframeSrc);
@@ -500,10 +513,41 @@
     isOpen = false;
     modal.style.opacity = "0";
     modal.style.transform = "translateY(20px)";
-    btn.style.opacity = "1";
     cap.style.opacity = "0.7";
   }
 
-  function toggleModal() { isOpen ? closeModal() : openModal(); }
+  function toggleModal() { 
+    isOpen ? closeModal() : openModal(); 
+  }
+  
   btn.onclick = toggleModal;
+
+  // Handle responsive
+  function handleResize() {
+    positionCaption();
+    
+    if (w.innerWidth < 480) {
+      // Full screen on mobile
+      modal.style.width = "100%";
+      modal.style.height = "100%";
+      modal.style.maxWidth = "100%";
+      modal.style.maxHeight = "100%";
+      modal.style.borderRadius = "0";
+      modal.style.left = "0";
+      modal.style.right = "0";
+      modal.style.top = "0";
+      modal.style.bottom = "0";
+    } else {
+      // Desktop/tablet
+      modal.style.width = "380px";
+      modal.style.height = "80vh";
+      modal.style.maxWidth = "calc(100vw - 32px)";
+      modal.style.maxHeight = "650px";
+      modal.style.borderRadius = "14px";
+      Object.assign(modal.style, getModalPosition());
+    }
+  }
+
+  w.addEventListener("resize", handleResize);
+  handleResize();
 })();
