@@ -404,8 +404,7 @@
     border: "none",
     cursor: "pointer",
     boxShadow: "0 8px 24px rgba(0,0,0,0.25)",
-    zIndex: "2147483647",
-    transition: "transform 120ms ease"
+    zIndex: "2147483000",
   });
   Object.assign(btn.style, getButtonPosition());
 
