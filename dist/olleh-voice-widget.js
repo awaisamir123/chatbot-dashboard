@@ -135,7 +135,8 @@
     border: '0',
     overflow: 'hidden',
     transform: 'translateY(24px)', opacity: '0',
-    transition: 'transform 200ms ease, opacity 200ms ease', zIndex: '2147483000'
+    transition: 'transform 200ms ease, opacity 200ms ease', zIndex: '2147483000',
+    pointerEvents: 'none'
   });
   d.body.appendChild(modal);
 
@@ -285,6 +286,7 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
     scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
     modal.style.opacity = '1'; modal.style.transform = 'translateY(0)';
+    modal.style.pointerEvents = 'auto';
     d.body.style.overflow = 'hidden';
 
     var baseUrl = stripTokenParam(cfg.iframeSrc) || "https://olleh.ai/demo";
@@ -310,6 +312,7 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     btn.setAttribute('aria-label', 'Open Olleh AI Assistant');
     scrim.style.opacity = '0'; scrim.style.pointerEvents = 'none';
     modal.style.opacity = '0'; modal.style.transform = 'translateY(24px)';
+    modal.style.pointerEvents = 'none';
     d.body.style.overflow = '';
     try { lastActive && lastActive.focus && lastActive.focus(); } catch (e) { }
     emit('close');
