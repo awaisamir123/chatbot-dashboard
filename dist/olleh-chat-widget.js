@@ -211,7 +211,8 @@
     display: "flex",
     flexDirection: "column",
     padding: "0",
-    margin: "0"
+    margin: "0",
+    pointerEvents: "none"
   });
   Object.assign(modal.style, getModalPosition());
   d.body.appendChild(modal);
@@ -237,6 +238,7 @@
     btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
     scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
     modal.style.opacity = '1'; modal.style.transform = 'translateY(0)';
+    modal.style.pointerEvents = 'auto';
     d.body.style.overflow = 'hidden';
 
     var baseUrl = stripTokenParam(cfg.iframeSrc);
@@ -250,6 +252,8 @@
     isOpen = false;
     modal.style.opacity = "0";
     modal.style.transform = "translateY(20px)";
+    modal.style.pointerEvents = "none";
+    scrim.style.pointerEvents = 'none';
     cap.style.opacity = "0.7";
   }
 
