@@ -208,7 +208,6 @@
     transform: "translateY(20px)",
     opacity: "0",
     transition: "all 200ms ease",
-    display: "flex",
     flexDirection: "column",
     padding: "0",
     margin: "0",
@@ -276,18 +275,13 @@
     positionCaption();
     
     if (w.innerWidth < 480) {
-      // Full screen on mobile
-      modal.style.width = "100%";
-      modal.style.height = "100%";
-      modal.style.maxWidth = "100%";
-      modal.style.maxHeight = "100%";
-      modal.style.borderRadius = "0";
-      modal.style.left = "0";
-      modal.style.right = "0";
-      modal.style.top = "0";
-      modal.style.bottom = "0";
+      modal.style.width = "22rem";
+      modal.style.maxWidth = "calc(100vw - 24px)";
+      modal.style.height = "80vh";
+      modal.style.maxHeight = "80vh";
+      modal.style.borderRadius = "14px";
+      Object.assign(modal.style, getModalPosition());
     } else {
-      // Desktop/tablet
       modal.style.width = "380px";
       modal.style.height = "80vh";
       modal.style.maxWidth = "calc(100vw - 32px)";
