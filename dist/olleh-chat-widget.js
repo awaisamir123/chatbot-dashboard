@@ -209,6 +209,7 @@
     opacity: "0",
     transition: "all 200ms ease",
     flexDirection: "column",
+    display: "flex",
     padding: "0",
     margin: "0",
     pointerEvents: "none",
@@ -275,7 +276,7 @@
     positionCaption();
     
     if (w.innerWidth < 480) {
-      modal.style.width = "100%";
+       modal.style.width = "100%";
       modal.style.height = "100%";
       modal.style.maxWidth = "100%";
       modal.style.maxHeight = "100%";
