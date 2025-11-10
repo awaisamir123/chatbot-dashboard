@@ -102,7 +102,7 @@
 
     if (isOpen) {
       var gap = 16;
-      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + 'px';
+      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + 'px'; // fixed var name
     } else {
       var offsetDown = 16;
       cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - offsetDown)) + 'px';
@@ -115,14 +115,8 @@
   // scrim
   var scrim = d.createElement('div');
   Object.assign(scrim.style, {
-    position: 'fixed', 
-    inset: '0', 
-    background: 'rgba(0,0,0,0.25)', 
-    opacity: '0',
-    transition: 'opacity 200ms ease', 
-    pointerEvents: 'none', 
-    zIndex: '2147482999',
-    display: 'none'  // FIXED: Start with display none
+    position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.25)', opacity: '0',
+    transition: 'opacity 200ms ease', pointerEvents: 'none', zIndex: '2147482999'
   });
   d.body.appendChild(scrim);
 
@@ -226,78 +220,72 @@
     }
   }
 
-  function fetchSessionToken(endpoint, clientToken, sessionId){
-    return new Promise(function(resolve, reject){
-      if(!endpoint || !clientToken){
-        return reject(new Error('missing endpoint or client token'));
-      }
+function fetchSessionToken(endpoint, clientToken, sessionId){
+  return new Promise(function(resolve, reject){
+    if(!endpoint || !clientToken){
+      return reject(new Error('missing endpoint or client token'));
+    }
 
-      var payload = {
-        token: clientToken,
-        session_id: sessionId,
-        origin: location.origin || ''
-      };
+    var payload = {
+      token: clientToken,
+      session_id: sessionId,
+      origin: location.origin || ''
+    };
 
-      var forceForm = String(script?.dataset.ollehSessionFormat || "").toLowerCase() === "form";
+    var forceForm = String(script?.dataset.ollehSessionFormat || "").toLowerCase() === "form";
 
-      function postJson(){
-        return fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json', "allow-origin": location.origin || "" },
-          body: JSON.stringify(payload)
+    function postJson(){
+      return fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', "allow-origin": location.origin || "" },
+        body: JSON.stringify(payload)
+      });
+    }
+    function postForm(){
+      return fetch(endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams(payload)
+      });
+    }
+    function handle(r){
+      if(!r.ok){
+        return r.text().then(function(t){
+          throw new Error('http ' + r.status + ', ' + t);
         });
       }
-      function postForm(){
-        return fetch(endpoint, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-          body: new URLSearchParams(payload)
-        });
-      }
-      function handle(r){
-        if(!r.ok){
-          return r.text().then(function(t){
-            throw new Error('http ' + r.status + ', ' + t);
+      return r.json().then(function(j){
+        var t = j && j.data && j.data.token;  // your shape
+        if(!t) throw new Error('no token in response');
+        return String(t);
+      });
+    }
+
+    // try JSON first unless forced to form
+    var first = forceForm ? postForm() : postJson();
+
+    first.then(handle)
+      .then(resolve)
+      .catch(function(err){
+        // if JSON failed, try form once, this can avoid preflight on some setups
+        if(!forceForm){
+          postForm().then(handle).then(resolve).catch(function(err2){
+            reject(err2);
           });
+        }else{
+          reject(err);
         }
-        return r.json().then(function(j){
-          var t = j && j.data && j.data.token;
-          if(!t) throw new Error('no token in response');
-          return String(t);
-        });
-      }
+      });
+  });
+}
 
-      // try JSON first unless forced to form
-      var first = forceForm ? postForm() : postJson();
-
-      first.then(handle)
-        .then(resolve)
-        .catch(function(err){
-          // if JSON failed, try form once
-          if(!forceForm){
-            postForm().then(handle).then(resolve).catch(function(err2){
-              reject(err2);
-            });
-          }else{
-            reject(err);
-          }
-        });
-    });
-  }
 
   function openModal() {
     if (isOpen) return;
     isOpen = true;
     lastActive = d.activeElement;
     btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
-    
-    // FIXED: Show scrim properly
-    scrim.style.display = 'block';
-    scrim.style.pointerEvents = 'auto';
-    requestAnimationFrame(function(){
-      scrim.style.opacity = '1';
-    });
-    
+    scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
     modal.style.display = 'block';
     modal.style.pointerEvents = 'auto';
     requestAnimationFrame(function(){
@@ -327,25 +315,15 @@
     if (!isOpen) return;
     isOpen = false;
     btn.setAttribute('aria-label', 'Open Olleh AI Assistant');
-    
-    // FIXED: Hide scrim properly
-    scrim.style.opacity = '0';
-    scrim.style.pointerEvents = 'none';
-    
-    modal.style.opacity = '0';
-    modal.style.transform = 'translateY(24px)';
+    scrim.style.opacity = '0'; scrim.style.pointerEvents = 'none';
+    modal.style.opacity = '0'; modal.style.transform = 'translateY(24px)';
     modal.style.pointerEvents = 'none';
     d.body.style.overflow = '';
-    
     try { lastActive && lastActive.focus && lastActive.focus(); } catch (e) { }
     emit('close');
     positionCaption();
-    
     setTimeout(function(){
-      if (!isOpen) {
-        modal.style.display = 'none';
-        scrim.style.display = 'none';  // FIXED: Hide scrim display
-      }
+      if (!isOpen) modal.style.display = 'none';
     }, 200);
   }
 
