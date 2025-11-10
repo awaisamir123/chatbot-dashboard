@@ -172,7 +172,7 @@
 
     if (isOpen) {
       var gap = 16;
-      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + 'px'; // fixed var name
+      cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - gap)) + 'px';
     } else {
       var offsetDown = 16;
       cap.style.bottom = Math.max(4, (w.innerHeight - b.bottom - offsetDown)) + 'px';
@@ -184,11 +184,21 @@
 
   var scrim = d.createElement('div');
   Object.assign(scrim.style, {
-    position: 'fixed', inset: '0', background: 'rgba(0,0,0,0.25)', opacity: '0',
-    transition: 'opacity 200ms ease', pointerEvents: 'none', zIndex: '2147482999'
+    position: 'fixed', 
+    inset: '0', 
+    background: 'rgba(0,0,0,0.25)', 
+    opacity: '0',
+    transition: 'opacity 200ms ease', 
+    pointerEvents: 'none', 
+    zIndex: '2147482999',
+    display: 'none'  // Added: Start with display none
   });
   d.body.appendChild(scrim);
 
+  // Click scrim to close modal
+  scrim.onclick = function() {
+    closeModal();
+  };
 
   // -------------------------
   // Modal with iframe
@@ -235,16 +245,25 @@
   function openModal() {
     if (isOpen) return;
     isOpen = true;
-    lastActive = d.activeElement;
     btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
-    scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
+    
+    // Show scrim
+    scrim.style.display = 'block';
+    scrim.style.pointerEvents = 'auto';
+    requestAnimationFrame(function(){
+      scrim.style.opacity = '1';
+    });
+    
+    // Show modal
     modal.style.display = 'flex';
     modal.style.pointerEvents = 'auto';
     requestAnimationFrame(function(){
       modal.style.opacity = '1';
       modal.style.transform = 'translateY(0)';
     });
+    
     d.body.style.overflow = 'hidden';
+    positionCaption();
 
     var baseUrl = stripTokenParam(cfg.iframeSrc);
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
@@ -255,14 +274,29 @@
   function closeModal() {
     if (!isOpen) return;
     isOpen = false;
+    btn.setAttribute('aria-label', 'Open Olleh AI Assistant');
+    
+    // Hide modal
     modal.style.opacity = "0";
     modal.style.transform = "translateY(20px)";
     modal.style.pointerEvents = "none";
+    
+    // Hide scrim
+    scrim.style.opacity = '0';
     scrim.style.pointerEvents = 'none';
-    cap.style.opacity = "0.7";
+    
+    // Reset body overflow
+    d.body.style.overflow = '';
+    
+    // Clean up after transition
     setTimeout(function(){
-      if (!isOpen) modal.style.display = 'none';
+      if (!isOpen) {
+        modal.style.display = 'none';
+        scrim.style.display = 'none';  // Added: Hide scrim display
+      }
     }, 200);
+    
+    positionCaption();
   }
 
   function toggleModal() { 
@@ -276,7 +310,7 @@
     positionCaption();
     
     if (w.innerWidth < 480) {
-       modal.style.width = "100%";
+      modal.style.width = "100%";
       modal.style.height = "100%";
       modal.style.maxWidth = "100%";
       modal.style.maxHeight = "100%";
