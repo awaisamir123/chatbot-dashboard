@@ -18,6 +18,11 @@
   if (w.__OLLEH_CHAT_ACTIVE__) return;
   w.__OLLEH_CHAT_ACTIVE__ = true;
 
+  var isiOS = /iphone|ipad|ipod/i.test(navigator.userAgent);
+  var hasVisualViewport = typeof window.visualViewport !== "undefined";
+  var detachViewportSync = function () {};
+  var lastScrollY = 0;
+
   function getSessionId() {
     try {
       var key = "olleh_ai_session_id";
@@ -212,7 +217,8 @@
     display: "flex",
     flexDirection: "column",
     padding: "0",
-    margin: "0"
+    margin: "0",
+    display: "none"
   });
   Object.assign(modal.style, getModalPosition());
   d.body.appendChild(modal);
@@ -228,8 +234,82 @@
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
+  // floating close button inside modal
+  var modalCloseBtn = d.createElement("button");
+  modalCloseBtn.type = "button";
+  modalCloseBtn.setAttribute("aria-label", "Close chat widget");
+  modalCloseBtn.textContent = "×";
+  Object.assign(modalCloseBtn.style, {
+    position: "absolute",
+    top: "14px",
+    right: "12px",
+    width: "32px",
+    height: "32px",
+    borderRadius: "9999px",
+    border: "none",
+    cursor: "pointer",
+    background: "rgba(255,255,255,0.9)",
+    color: "#333",
+    fontSize: "18px",
+    lineHeight: "1",
+    display: "flex",
+    alignItems: "center",
+    justifyContent: "center",
+    boxShadow: "0 2px 8px rgba(0,0,0,0.18)",
+    display: "none"
+  });
+  modalCloseBtn.addEventListener("mouseenter", function(){
+    modalCloseBtn.style.background = "rgba(255,255,255,0.75)";
+  });
+  modalCloseBtn.addEventListener("mouseleave", function(){
+    modalCloseBtn.style.background = "rgba(255,255,255,0.9)";
+  });
+  modalCloseBtn.addEventListener("click", closeModal);
+  modal.appendChild(modalCloseBtn);
 
   var isOpen = false;
+
+  function lockBodyScroll() {
+    lastScrollY = window.scrollY || 0;
+    d.body.dataset.prevOverflow = d.body.style.overflow || "";
+    d.body.dataset.prevPosition = d.body.style.position || "";
+    d.body.dataset.prevTop = d.body.style.top || "";
+    d.body.dataset.prevWidth = d.body.style.width || "";
+    d.body.style.position = "fixed";
+    d.body.style.top = -lastScrollY + "px";
+    d.body.style.width = "100%";
+    d.body.style.overflow = "hidden";
+  }
+
+  function unlockBodyScroll() {
+    d.body.style.position = d.body.dataset.prevPosition || "";
+    d.body.style.top = d.body.dataset.prevTop || "";
+    d.body.style.width = d.body.dataset.prevWidth || "";
+    d.body.style.overflow = d.body.dataset.prevOverflow || "";
+    window.scrollTo(0, lastScrollY || 0);
+  }
+
+  function enableViewportSync() {
+    if (!hasVisualViewport) return;
+    var handler = function () {
+      if (!isOpen) return;
+      var vv = window.visualViewport;
+      modal.style.width = vv.width + "px";
+      modal.style.height = vv.height + "px";
+      modal.style.left = vv.offsetLeft + "px";
+      modal.style.top = vv.offsetTop + "px";
+      modal.style.right = "";
+      modal.style.bottom = "";
+    };
+    handler();
+    window.visualViewport.addEventListener("resize", handler);
+    window.visualViewport.addEventListener("scroll", handler);
+    detachViewportSync = function () {
+      window.visualViewport.removeEventListener("resize", handler);
+      window.visualViewport.removeEventListener("scroll", handler);
+      detachViewportSync = function(){};
+    };
+  }
 
   function openModal() {
     if (isOpen) return;
@@ -237,8 +317,16 @@
     lastActive = d.activeElement;
     btn.setAttribute('aria-label', 'Close Olleh AI Assistant');
     scrim.style.pointerEvents = 'auto'; scrim.style.opacity = '1';
+    modal.style.display = "flex";
     modal.style.opacity = '1'; modal.style.transform = 'translateY(0)';
-    d.body.style.overflow = 'hidden';
+    lockBodyScroll();
+    if (isiOS) {
+      enableViewportSync();
+    }
+    modalCloseBtn.style.display = "flex";
+    try {
+      document.documentElement.classList.add("olleh-open");
+    } catch (e) {}
 
     var baseUrl = stripTokenParam(cfg.iframeSrc);
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
@@ -252,6 +340,25 @@
     modal.style.opacity = "0";
     modal.style.transform = "translateY(20px)";
     cap.style.opacity = "0.7";
+    scrim.style.opacity = "0";
+    scrim.style.pointerEvents = "none";
+    detachViewportSync();
+    unlockBodyScroll();
+    btn.setAttribute('aria-label', 'Open Olleh AI Assistant');
+    try {
+      document.documentElement.classList.remove("olleh-open");
+    } catch (e) {}
+    setTimeout(function(){
+      modal.style.display = "none";
+      var pos = getModalPosition();
+      modal.style.left = pos.left || modal.style.left;
+      modal.style.top = pos.top || modal.style.top;
+      modal.style.right = pos.right || modal.style.right;
+      modal.style.bottom = pos.bottom || modal.style.bottom;
+    }, 200);
+    // reset iframe so previous chat doesn't flash next time
+    iframe.src = "about:blank";
+    modalCloseBtn.style.display = "none";
   }
 
   function toggleModal() { 
@@ -259,12 +366,20 @@
   }
   
   btn.onclick = toggleModal;
+  // Listen for postMessage from iframe to close widget
+  function handleMessage(event) {
+    if (!event || !event.data) return;
+    if (event.data.type === "olleh-close-widget") {
+      closeModal();
+    }
+  }
+  window.addEventListener("message", handleMessage);
 
   // Handle responsive
   function handleResize() {
     positionCaption();
     
-    if (w.innerWidth < 480) {
+    if (w.innerWidth < 768 && !isOpen) {
       // Full screen on mobile
       modal.style.width = "100%";
       modal.style.height = "100%";
