@@ -9,8 +9,8 @@
     allow: script?.dataset.ollehAllow || "microphone; autoplay",
     sandbox: script?.dataset.ollehSandbox || "allow-scripts allow-forms allow-same-origin",
     brandText: script?.dataset.brandText || "Olleh AI Assistant",
-    primaryColor: script?.dataset.primaryColor || "#0798e4",
-    secondaryColor: script?.dataset.secondaryColor || "#000",
+  primaryColor: script?.dataset.primaryColor || "#4f46e5",
+  secondaryColor: script?.dataset.secondaryColor || "#f4f6fb",
     iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png",
     buttonPosition: script?.dataset.buttonPosition || "bottom-right"
   };
