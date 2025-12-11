@@ -23,6 +23,18 @@
   var detachViewportSync = function () {};
   var lastScrollY = 0;
 
+  var WAIT_MS = 25000; // 30s mandatory wait (used only on/after second open within 30s)
+  var waitTimerId = null;
+  var waitOverlay = null;
+  var waitCountdown = null;
+  var waitingForGate = false;
+  var waitSpinner = null;
+  var waitIntervalId = null;
+  var FIRST_OPEN_KEY = "olleh_first_open_at";
+  function logDebug(msg, extra) {
+    try { console.log("[OllehChat][wait]", msg, extra || ""); } catch (e) {}
+  }
+
   function getSessionId() {
     try {
       var key = "olleh_ai_session_id";
@@ -234,6 +246,62 @@
   iframe.allow = cfg.allow;
   iframe.sandbox = cfg.sandbox;
   modal.appendChild(iframe);
+  // wait overlay to enforce 30s gating
+  waitOverlay = d.createElement("div");
+  Object.assign(waitOverlay.style, {
+    position: "absolute",
+    inset: "0",
+    background: "rgba(255,255,255,0.92)",
+    backdropFilter: "blur(4px)",
+    display: "none",
+    alignItems: "center",
+    justifyContent: "center",
+    flexDirection: "column",
+    zIndex: "2147483647",
+    textAlign: "center",
+    padding: "16px",
+    gap: "8px",
+    color: "#111827",
+    fontFamily: "Inter, sans-serif",
+    pointerEvents: "auto"
+  });
+  var waitTitle = d.createElement("div");
+  waitTitle.textContent = "Preparing your chat...";
+  waitTitle.style.fontSize = "20px";
+  waitTitle.style.fontWeight = "700";
+  waitCountdown = d.createElement("div");
+  waitCountdown.textContent = "Please wait a while...";
+  waitCountdown.style.fontSize = "18px";
+  waitCountdown.style.fontWeight = "500";
+  waitCountdown.style.color = "#4f46e5";
+  var waitHint = d.createElement("div");
+  // waitHint.textContent = "We’re getting an agent ready for you.";
+  waitHint.style.fontSize = "12px";
+  waitHint.style.color = "#4b5563";
+  waitSpinner = d.createElement("div");
+  Object.assign(waitSpinner.style, {
+    width: "34px",
+    height: "34px",
+    borderRadius: "9999px",
+    border: "3px solid #e5e7eb",
+    borderTopColor: "#4f46e5",
+    animation: "olleh-wait-spin 1s linear infinite",
+    marginTop: "6px",
+    marginBottom: "6px"
+  });
+  // spinner keyframes
+  if (!d.getElementById("olleh-wait-spin-style")) {
+    var spinStyle = d.createElement("style");
+    spinStyle.id = "olleh-wait-spin-style";
+    spinStyle.textContent = "@keyframes olleh-wait-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }";
+    d.head.appendChild(spinStyle);
+  }
+  waitOverlay.appendChild(waitTitle);
+  waitOverlay.appendChild(waitSpinner);
+  waitOverlay.appendChild(waitCountdown);
+  waitOverlay.appendChild(waitHint);
+  modal.appendChild(waitOverlay);
+
   // floating close button inside modal
   var modalCloseBtn = d.createElement("button");
   modalCloseBtn.type = "button";
@@ -311,6 +379,145 @@
     };
   }
 
+  function getStoredWaitUntil() {
+    try {
+      return parseInt(localStorage.getItem("olleh_wait_until") || "0", 10) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function setStoredWaitUntil(ts) {
+    try {
+      localStorage.setItem("olleh_wait_until", String(ts));
+    } catch (e) {}
+  }
+
+  function getFirstOpenAt() {
+    try {
+      return parseInt(localStorage.getItem(FIRST_OPEN_KEY) || "0", 10) || 0;
+    } catch (e) {
+      return 0;
+    }
+  }
+
+  function setFirstOpenAt(ts) {
+    try {
+      localStorage.setItem(FIRST_OPEN_KEY, String(ts));
+    } catch (e) {}
+  }
+
+  function clearFirstOpenAt() {
+    try {
+      localStorage.removeItem(FIRST_OPEN_KEY);
+    } catch (e) {}
+  }
+
+  function clearWaitData() {
+    try {
+      localStorage.removeItem("olleh_wait_until");
+    } catch (e) {}
+  }
+
+  function markParentWaitDone() {
+    try {
+      localStorage.setItem("olleh_parent_wait_done_at", String(Date.now()));
+    } catch (e) {}
+  }
+
+  function getRemainingWaitMs() {
+    return getEffectiveRemainingMs();
+  }
+
+  // On a totally fresh browser/session (no anchor), ensure no stale wait is applied
+  if (!getFirstOpenAt()) {
+    clearWaitData();
+  }
+
+  function getEffectiveRemainingMs(now) {
+    var nowTs = now || Date.now();
+    var storedUntil = getStoredWaitUntil();
+    if (storedUntil > nowTs) return storedUntil - nowTs;
+    var first = getFirstOpenAt();
+    if (!first) return 0;
+    var until = first + WAIT_MS;
+    var rem = until - nowTs;
+    return rem > 0 ? rem : 0;
+  }
+
+  function clearWaitInterval() {
+    if (waitIntervalId) {
+      clearInterval(waitIntervalId);
+      waitIntervalId = null;
+    }
+  }
+
+  function clearWaitTimer() {
+    if (waitTimerId) {
+      clearInterval(waitTimerId);
+      waitTimerId = null;
+    }
+    clearWaitInterval();
+    waitingForGate = false;
+    waitOverlay.style.display = "none";
+    // restore iframe visibility once waiting is done/cancelled
+    try {
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "auto";
+    } catch (e) {}
+  }
+
+  function showWaitOverlay() {
+    try {
+      logDebug("Show wait overlay");
+      waitOverlay.style.display = "flex";
+      iframe.style.opacity = "0";
+      iframe.style.pointerEvents = "none";
+    } catch (e) {}
+  }
+
+  function startWaitCountdown(onDone, waitUntilOverride) {
+    var now = Date.now();
+    var storedUntil = getStoredWaitUntil();
+    var waitUntil = waitUntilOverride || (storedUntil > now ? storedUntil : now + WAIT_MS);
+    logDebug("Starting wait countdown", { now, storedUntil, waitUntil });
+    if (waitUntil !== storedUntil) setStoredWaitUntil(waitUntil);
+
+    function updateCountdown() {
+      var remaining = waitUntil - Date.now();
+      if (remaining <= 0) {
+        waitCountdown.textContent = "Ready!";
+        // Clear stored wait so child iframe doesn't also show a second wait
+        clearWaitData();
+        markParentWaitDone();
+        clearWaitTimer();
+        logDebug("Wait completed, proceeding to load iframe");
+        onDone();
+        return;
+      }
+      var secs = Math.ceil(remaining / 1000);
+    waitCountdown.textContent = "Connecting in " + secs + "s";
+      logDebug("Wait tick", { remaining, secs });
+    }
+
+    waitingForGate = true;
+    showWaitOverlay();
+    updateCountdown();
+    clearWaitInterval();
+    waitIntervalId = setInterval(updateCountdown, 500);
+  }
+
+  function loadIframeAfterWait() {
+    logDebug("Loading iframe after wait");
+    var baseUrl = stripTokenParam(cfg.iframeSrc);
+    fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
+      .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
+      .catch(function(err){
+        logDebug("Token fetch failed, fallback load", err);
+        iframe.src = buildIframeUrl(cfg.iframeSrc, "");
+      });
+  }
+
   function openModal() {
     if (isOpen) return;
     isOpen = true;
@@ -328,10 +535,58 @@
       document.documentElement.classList.add("olleh-open");
     } catch (e) {}
 
-    var baseUrl = stripTokenParam(cfg.iframeSrc);
-    fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
-      .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
-      .catch(function(){ iframe.src = buildIframeUrl(cfg.iframeSrc, ""); });
+    // If iframe already loaded (existing session), skip wait and just show it
+    if (iframe && iframe.src && iframe.src !== "about:blank") {
+      waitOverlay.style.display = "none";
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "auto";
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage({ type: "olleh-scroll-latest" }, "*");
+      } catch (e) {
+        logDebug("Failed to request scroll-latest from iframe", e);
+      }
+      return;
+    }
+
+    var firstOpenAt = getFirstOpenAt();
+    var now = Date.now();
+
+    var remaining = getEffectiveRemainingMs(now);
+
+    // No anchor yet -> first ever open, skip wait (do NOT set anchor)
+    if (!firstOpenAt) {
+      clearWaitData();
+      logDebug("First open detected, skipping wait gate");
+      waitOverlay.style.display = "none";
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "auto";
+      loadIframeAfterWait();
+      return;
+    }
+
+    // Anchor exists
+    if (remaining <= 0) {
+      // Window passed; clear anchor and skip wait
+      clearFirstOpenAt();
+      clearWaitData();
+      logDebug("Window passed, skipping wait and clearing anchor");
+      waitOverlay.style.display = "none";
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "auto";
+      loadIframeAfterWait();
+      return;
+    }
+
+    // Enforce remaining wait without resetting timer; reuse existing until
+    var storedUntil = getStoredWaitUntil();
+    var anchorUntil = getFirstOpenAt() + WAIT_MS;
+    var waitUntil = storedUntil > now ? storedUntil : anchorUntil;
+    setStoredWaitUntil(waitUntil);
+    logDebug("Reopen inside active window, using remaining wait", { remaining, waitUntil });
+    showWaitOverlay();
+    startWaitCountdown(function(){
+      loadIframeAfterWait();
+    }, waitUntil);
   }
 
   function closeModal() {
@@ -356,8 +611,6 @@
       modal.style.right = pos.right || modal.style.right;
       modal.style.bottom = pos.bottom || modal.style.bottom;
     }, 200);
-    // reset iframe so previous chat doesn't flash next time
-    iframe.src = "about:blank";
     modalCloseBtn.style.display = "none";
   }
 
@@ -371,6 +624,16 @@
     if (!event || !event.data) return;
     if (event.data.type === "olleh-close-widget") {
       closeModal();
+      return;
+    }
+    if (event.data.type === "olleh-check-wait") {
+      var rem = getRemainingWaitMs();
+      logDebug("Iframe asked for wait status", { remainingMs: rem });
+      try {
+        event.source && event.source.postMessage({ type: "olleh-wait-status", remainingMs: rem }, "*");
+      } catch (e) {
+        logDebug("Failed to post wait status", e);
+      }
     }
   }
   window.addEventListener("message", handleMessage);
