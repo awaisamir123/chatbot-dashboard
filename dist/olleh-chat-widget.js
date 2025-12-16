@@ -20,6 +20,7 @@
     var DELETE_ROOM_TOKEN = "64Ebc56f62Bb33bd6eeb46b43cC49e44f2e5715A988E50d2f3675CFF3Fb1";
     var lastUserId = null;
     var hadConnected = false;
+    var agentHadJoined = false;
   
     if (w.__OLLEH_CHAT_ACTIVE__) return;
     w.__OLLEH_CHAT_ACTIVE__ = true;
@@ -29,7 +30,7 @@
     var detachViewportSync = function () {};
     var lastScrollY = 0;
   
-    var WAIT_MS = 15000; // 30s gate when fully closing the chat
+    var WAIT_MS = 15000; // 15s gate when fully closing the chat
     var waitTimerId = null;
     var waitOverlay = null;
     var waitCountdown = null;
@@ -439,22 +440,19 @@
       } catch (e) {
         logDebug("Failed to request iframe disconnect", e);
       }
-      // If iframe was loaded (not about:blank), set wait anchor immediately
-      if (iframe && iframe.src && iframe.src !== "about:blank") {
-        var now = Date.now();
-        setFirstOpenAt(now);
-        setStoredWaitUntil(now + WAIT_MS);
-      }
-  
       // Wait for iframe to acknowledge disconnect before blanking src
       function ackHandler(evt) {
         if (!evt || !evt.data) return;
         if (evt.data.type === "olleh-disconnect-done") {
-          if (evt.data.hadRoom) {
+          // Set wait anchor if agent had actually joined (check both iframe response and our tracked state)
+          var agentJoined = evt.data.agentJoined || agentHadJoined;
+          if (agentJoined) {
             var now = Date.now();
-            setFirstOpenAt(now);
-            setStoredWaitUntil(now + WAIT_MS);
+            markWaitAnchor(now);
+            logDebug("Wait anchor set on close", { agentJoined: agentJoined, now: now });
           }
+          // Reset agent join flag when closing
+          agentHadJoined = false;
           try { iframe.src = "about:blank"; } catch (e) {}
           closeModal();
           w.removeEventListener("message", ackHandler);
@@ -463,7 +461,15 @@
       w.addEventListener("message", ackHandler);
   
       // Fallback: if no ack arrives, still blank after 1s to avoid getting stuck
+      // But still set wait anchor if we know agent had joined
       setTimeout(function(){
+        if (agentHadJoined) {
+          var now = Date.now();
+          markWaitAnchor(now);
+          logDebug("Wait anchor set on close (fallback)", { now: now });
+        }
+        // Reset agent join flag when closing
+        agentHadJoined = false;
         try { iframe.src = "about:blank"; } catch (e) {}
         closeModal();
         w.removeEventListener("message", ackHandler);
@@ -576,6 +582,11 @@
       try {
         localStorage.setItem(FIRST_OPEN_KEY, String(ts));
       } catch (e) {}
+    }
+  
+    function markWaitAnchor(nowTs) {
+      setFirstOpenAt(nowTs);
+      setStoredWaitUntil(nowTs + WAIT_MS);
     }
   
     function clearFirstOpenAt() {
@@ -788,6 +799,9 @@
           if (event.data.hadRoom) {
             hadConnected = true;
           }
+          if (event.data.agentJoined) {
+            agentHadJoined = true;
+          }
         } catch (e) {
           logDebug("Failed to capture user context", e);
         }
@@ -847,6 +861,11 @@
   
     // On page unload, best-effort delete room if we ever connected
     w.addEventListener("beforeunload", function(){
+      try {
+        if (hadConnected) {
+          markWaitAnchor(Date.now());
+        }
+      } catch (e) { logDebug("markWaitAnchor on unload failed", e); }
       try { deleteRoomOnClose(); } catch (e) { logDebug("delete_room on unload failed", e); }
     });
   })();
