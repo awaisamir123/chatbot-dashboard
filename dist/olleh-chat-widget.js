@@ -668,7 +668,7 @@
         }
         var secs = Math.ceil(remaining / 1000);
       // waitCountdown.textContent = "Connecting in " + secs + "s";
-      waitCountdown.textContent = "Connecting to the agent..." + secs + "s";
+      waitCountdown.textContent = "Connecting to the agent...";
         logDebug("Wait tick", { remaining, secs });
       }
   
