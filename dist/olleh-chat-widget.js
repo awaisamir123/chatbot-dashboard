@@ -15,6 +15,12 @@
       buttonPosition: script?.dataset.buttonPosition || "bottom-right"
     };
   
+    // Delete-room API configuration (kept local, not in cfg)
+    var DELETE_ROOM_ENDPOINT = "https://pyapi.olleh.ai/delete_room";
+    var DELETE_ROOM_TOKEN = "64Ebc56f62Bb33bd6eeb46b43cC49e44f2e5715A988E50d2f3675CFF3Fb1";
+    var lastUserId = null;
+    var hadConnected = false;
+  
     if (w.__OLLEH_CHAT_ACTIVE__) return;
     w.__OLLEH_CHAT_ACTIVE__ = true;
   
@@ -22,6 +28,19 @@
     var hasVisualViewport = typeof window.visualViewport !== "undefined";
     var detachViewportSync = function () {};
     var lastScrollY = 0;
+  
+    var WAIT_MS = 15000; // 30s gate when fully closing the chat
+    var waitTimerId = null;
+    var waitOverlay = null;
+    var waitCountdown = null;
+    var waitingForGate = false;
+    var waitSpinner = null;
+    var waitIntervalId = null;
+    var FIRST_OPEN_KEY = "olleh_first_open_at";
+    var confirmOverlay = null;
+    function logDebug(msg, extra) {
+      try { console.log("[OllehChat][wait]", msg, extra || ""); } catch (e) {}
+    }
   
     function getSessionId() {
       try {
@@ -34,6 +53,29 @@
         return sid;
       } catch (e) {
         return "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+      }
+    }
+  
+    function deleteRoomOnClose() {
+      if (!hadConnected || !lastUserId) {
+        logDebug("delete_room skipped (no connection/user yet)");
+        return;
+      }
+      try {
+        var sessionId = getSessionId() || null;
+        var payload = { user_id: lastUserId || null, session_id: sessionId || null };
+        fetch(DELETE_ROOM_ENDPOINT, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json",
+            "Api-Token": DELETE_ROOM_TOKEN
+          },
+          body: JSON.stringify(payload)
+        })
+          .then(function(res){ logDebug("delete_room status", res.status); })
+          .catch(function(err){ logDebug("delete_room error", err); });
+      } catch (e) {
+        logDebug("delete_room failed", e);
       }
     }
   
@@ -66,7 +108,7 @@
     function fetchSessionToken(endpoint, clientToken, sessionId) {
       return new Promise(function (resolve, reject) {
         if (!endpoint || !clientToken) return reject(new Error("missing endpoint or client token"));
-        var payload = { token: clientToken, session_id: sessionId, origin: location.origin || "" };
+        var payload = { token: clientToken, session_id: sessionId, origin: "https://olleh.ai"};
   
         function handle(r) {
           if (!r.ok) return r.text().then(function (t) { throw new Error("http " + r.status + ", " + t); });
@@ -234,6 +276,203 @@
     iframe.allow = cfg.allow;
     iframe.sandbox = cfg.sandbox;
     modal.appendChild(iframe);
+    // wait overlay to enforce 30s gating
+    waitOverlay = d.createElement("div");
+    Object.assign(waitOverlay.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(255,255,255,0.92)",
+      backdropFilter: "blur(4px)",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      flexDirection: "column",
+      zIndex: "2147483647",
+      textAlign: "center",
+      padding: "16px",
+      gap: "8px",
+      color: "#111827",
+      fontFamily: "Inter, sans-serif",
+      pointerEvents: "auto"
+    });
+    var waitTitle = d.createElement("div");
+    // waitTitle.textContent = "Preparing your chat...";
+    waitTitle.style.fontSize = "20px";
+    waitTitle.style.fontWeight = "700";
+    waitCountdown = d.createElement("div");
+    waitCountdown.textContent = "Please wait a while...";
+    waitCountdown.style.fontSize = "18px";
+    waitCountdown.style.fontWeight = "500";
+    waitCountdown.style.color = "#4f46e5";
+    var waitHint = d.createElement("div");
+    // waitHint.textContent = "We’re getting an agent ready for you.";
+    waitHint.style.fontSize = "12px";
+    waitHint.style.color = "#4b5563";
+    waitSpinner = d.createElement("div");
+    Object.assign(waitSpinner.style, {
+      width: "34px",
+      height: "34px",
+      borderRadius: "9999px",
+      border: "3px solid #e5e7eb",
+      borderTopColor: "#4f46e5",
+      animation: "olleh-wait-spin 1s linear infinite",
+      marginTop: "6px",
+      marginBottom: "6px"
+    });
+    // spinner keyframes
+    if (!d.getElementById("olleh-wait-spin-style")) {
+      var spinStyle = d.createElement("style");
+      spinStyle.id = "olleh-wait-spin-style";
+      spinStyle.textContent = "@keyframes olleh-wait-spin { from { transform: rotate(0deg); } to { transform: rotate(360deg); } }";
+      d.head.appendChild(spinStyle);
+    }
+    waitOverlay.appendChild(waitTitle);
+    waitOverlay.appendChild(waitSpinner);
+    waitOverlay.appendChild(waitCountdown);
+    waitOverlay.appendChild(waitHint);
+    modal.appendChild(waitOverlay);
+  
+    // Close confirmation overlay (minimize vs close)
+    confirmOverlay = d.createElement("div");
+    Object.assign(confirmOverlay.style, {
+      position: "absolute",
+      inset: "0",
+      background: "rgba(0,0,0,0.35)",
+      display: "none",
+      alignItems: "center",
+      justifyContent: "center",
+      zIndex: "2147483650",
+      padding: "16px"
+    });
+    var confirmBox = d.createElement("div");
+    Object.assign(confirmBox.style, {
+      width: "100%",
+      maxWidth: "340px",
+      background: "#fff",
+      borderRadius: "14px",
+      boxShadow: "0 18px 40px rgba(0,0,0,0.18)",
+      padding: "18px",
+      display: "flex",
+      flexDirection: "column",
+      gap: "12px",
+      fontFamily: "Inter, sans-serif",
+      textAlign: "center"
+    });
+    var confirmTitle = d.createElement("div");
+    confirmTitle.textContent = "What would you like to do?";
+    confirmTitle.style.fontSize = "16px";
+    confirmTitle.style.fontWeight = "700";
+    confirmTitle.style.color = "#111827";
+    var confirmDesc = d.createElement("div");
+    confirmDesc.textContent = "You can minimize to keep this chat session alive, or close to end it.";
+    confirmDesc.style.fontSize = "13px";
+    confirmDesc.style.color = "#4b5563";
+    confirmDesc.style.lineHeight = "1.5";
+    var confirmActions = d.createElement("div");
+    Object.assign(confirmActions.style, {
+      display: "flex",
+      gap: "10px",
+      marginTop: "4px"
+    });
+    var minimizeBtn = d.createElement("button");
+    minimizeBtn.type = "button";
+    minimizeBtn.textContent = "Minimize";
+    Object.assign(minimizeBtn.style, {
+      flex: "1",
+      padding: "10px 12px",
+      borderRadius: "10px",
+      border: "1px solid #e5e7eb",
+      background: "#f9fafb",
+      color: "#111827",
+      fontWeight: "600",
+      cursor: "pointer"
+    });
+    var closeBtn = d.createElement("button");
+    closeBtn.type = "button";
+    closeBtn.textContent = "Close chat";
+    Object.assign(closeBtn.style, {
+      flex: "1",
+      padding: "10px 12px",
+      borderRadius: "10px",
+      border: "none",
+      background: "#ef4444",
+      color: "#fff",
+      fontWeight: "700",
+      cursor: "pointer",
+      boxShadow: "0 12px 24px rgba(239,68,68,0.25)"
+    });
+    confirmActions.appendChild(minimizeBtn);
+    confirmActions.appendChild(closeBtn);
+    confirmTitle.className = "olleh-confirm-title";
+    confirmDesc.className = "olleh-confirm-desc";
+    minimizeBtn.className = "olleh-confirm-btn";
+    closeBtn.className = "olleh-confirm-btn";
+    confirmBox.className = "olleh-confirm-box";
+    confirmBox.appendChild(confirmTitle);
+    confirmBox.appendChild(confirmDesc);
+    confirmBox.appendChild(confirmActions);
+    confirmOverlay.appendChild(confirmBox);
+    modal.appendChild(confirmOverlay);
+    if (!d.getElementById("olleh-confirm-style")) {
+      var confirmStyle = d.createElement("style");
+      confirmStyle.id = "olleh-confirm-style";
+      confirmStyle.textContent = "\
+        @media (max-width: 480px) {\
+          .olleh-confirm-box{max-width:260px;padding:14px;border-radius:12px;}\
+          .olleh-confirm-title{font-size:14px;}\
+          .olleh-confirm-desc{font-size:12px;}\
+          .olleh-confirm-btn{padding:8px 10px;font-size:13px;border-radius:9px;}\
+        }";
+      d.head.appendChild(confirmStyle);
+    }
+  
+    function handleMinimize() {
+      hideClosePrompt();
+      closeModal();
+    }
+  
+    function handleCloseChat() {
+      hideClosePrompt();
+      deleteRoomOnClose();
+      try {
+        iframe.contentWindow && iframe.contentWindow.postMessage({ type: "olleh-force-disconnect" }, "*");
+      } catch (e) {
+        logDebug("Failed to request iframe disconnect", e);
+      }
+      // If iframe was loaded (not about:blank), set wait anchor immediately
+      if (iframe && iframe.src && iframe.src !== "about:blank") {
+        var now = Date.now();
+        setFirstOpenAt(now);
+        setStoredWaitUntil(now + WAIT_MS);
+      }
+  
+      // Wait for iframe to acknowledge disconnect before blanking src
+      function ackHandler(evt) {
+        if (!evt || !evt.data) return;
+        if (evt.data.type === "olleh-disconnect-done") {
+          if (evt.data.hadRoom) {
+            var now = Date.now();
+            setFirstOpenAt(now);
+            setStoredWaitUntil(now + WAIT_MS);
+          }
+          try { iframe.src = "about:blank"; } catch (e) {}
+          closeModal();
+          w.removeEventListener("message", ackHandler);
+        }
+      }
+      w.addEventListener("message", ackHandler);
+  
+      // Fallback: if no ack arrives, still blank after 1s to avoid getting stuck
+      setTimeout(function(){
+        try { iframe.src = "about:blank"; } catch (e) {}
+        closeModal();
+        w.removeEventListener("message", ackHandler);
+      }, 1000);
+    }
+  
+    minimizeBtn.addEventListener("click", handleMinimize);
+    closeBtn.addEventListener("click", handleCloseChat);
+  
     // floating close button inside modal
     var modalCloseBtn = d.createElement("button");
     modalCloseBtn.type = "button";
@@ -264,7 +503,7 @@
     modalCloseBtn.addEventListener("mouseleave", function(){
       modalCloseBtn.style.background = "rgba(255,255,255,0.9)";
     });
-    modalCloseBtn.addEventListener("click", closeModal);
+    modalCloseBtn.addEventListener("click", showClosePrompt);
     modal.appendChild(modalCloseBtn);
   
     var isOpen = false;
@@ -311,6 +550,146 @@
       };
     }
   
+    function getStoredWaitUntil() {
+      try {
+        return parseInt(localStorage.getItem("olleh_wait_until") || "0", 10) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+  
+    function setStoredWaitUntil(ts) {
+      try {
+        localStorage.setItem("olleh_wait_until", String(ts));
+      } catch (e) {}
+    }
+  
+    function getFirstOpenAt() {
+      try {
+        return parseInt(localStorage.getItem(FIRST_OPEN_KEY) || "0", 10) || 0;
+      } catch (e) {
+        return 0;
+      }
+    }
+  
+    function setFirstOpenAt(ts) {
+      try {
+        localStorage.setItem(FIRST_OPEN_KEY, String(ts));
+      } catch (e) {}
+    }
+  
+    function clearFirstOpenAt() {
+      try {
+        localStorage.removeItem(FIRST_OPEN_KEY);
+      } catch (e) {}
+    }
+  
+    function clearWaitData() {
+      try {
+        localStorage.removeItem("olleh_wait_until");
+      } catch (e) {}
+    }
+  
+    function markParentWaitDone() {
+      try {
+        localStorage.setItem("olleh_parent_wait_done_at", String(Date.now()));
+      } catch (e) {}
+    }
+  
+    function getRemainingWaitMs() {
+      return getEffectiveRemainingMs();
+    }
+  
+    // On a totally fresh browser/session (no anchor), ensure no stale wait is applied
+    if (!getFirstOpenAt()) {
+      clearWaitData();
+    }
+  
+    function getEffectiveRemainingMs(now) {
+      var nowTs = now || Date.now();
+      var storedUntil = getStoredWaitUntil();
+      if (storedUntil > nowTs) return storedUntil - nowTs;
+      var first = getFirstOpenAt();
+      if (!first) return 0;
+      var until = first + WAIT_MS;
+      var rem = until - nowTs;
+      return rem > 0 ? rem : 0;
+    }
+  
+    function clearWaitInterval() {
+      if (waitIntervalId) {
+        clearInterval(waitIntervalId);
+        waitIntervalId = null;
+      }
+    }
+  
+    function clearWaitTimer() {
+      if (waitTimerId) {
+        clearInterval(waitTimerId);
+        waitTimerId = null;
+      }
+      clearWaitInterval();
+      waitingForGate = false;
+      waitOverlay.style.display = "none";
+      // restore iframe visibility once waiting is done/cancelled
+      try {
+        iframe.style.opacity = "1";
+        iframe.style.pointerEvents = "auto";
+      } catch (e) {}
+    }
+  
+    function showWaitOverlay() {
+      try {
+        logDebug("Show wait overlay");
+        waitOverlay.style.display = "flex";
+        iframe.style.opacity = "0";
+        iframe.style.pointerEvents = "none";
+      } catch (e) {}
+    }
+  
+    function startWaitCountdown(onDone, waitUntilOverride) {
+      var now = Date.now();
+      var storedUntil = getStoredWaitUntil();
+      var waitUntil = waitUntilOverride || (storedUntil > now ? storedUntil : now + WAIT_MS);
+      logDebug("Starting wait countdown", { now, storedUntil, waitUntil });
+      if (waitUntil !== storedUntil) setStoredWaitUntil(waitUntil);
+  
+      function updateCountdown() {
+        var remaining = waitUntil - Date.now();
+        if (remaining <= 0) {
+          waitCountdown.textContent = "Ready!";
+          // Clear stored wait so child iframe doesn't also show a second wait
+          clearWaitData();
+          markParentWaitDone();
+          clearWaitTimer();
+          logDebug("Wait completed, proceeding to load iframe");
+          onDone();
+          return;
+        }
+        var secs = Math.ceil(remaining / 1000);
+      // waitCountdown.textContent = "Connecting in " + secs + "s";
+      waitCountdown.textContent = "Connecting to the agent..." + secs + "s";
+        logDebug("Wait tick", { remaining, secs });
+      }
+  
+      waitingForGate = true;
+      showWaitOverlay();
+      updateCountdown();
+      clearWaitInterval();
+      waitIntervalId = setInterval(updateCountdown, 500);
+    }
+  
+    function loadIframe() {
+      logDebug("Loading iframe");
+      var baseUrl = stripTokenParam(cfg.iframeSrc);
+      fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
+        .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
+        .catch(function(err){
+          logDebug("Token fetch failed, fallback load", err);
+          iframe.src = buildIframeUrl(cfg.iframeSrc, "");
+        });
+    }
+  
     function openModal() {
       if (isOpen) return;
       isOpen = true;
@@ -328,10 +707,32 @@
         document.documentElement.classList.add("olleh-open");
       } catch (e) {}
   
-      var baseUrl = stripTokenParam(cfg.iframeSrc);
-      fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
-        .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
-        .catch(function(){ iframe.src = buildIframeUrl(cfg.iframeSrc, ""); });
+      // If iframe already loaded (existing session), skip wait and just show it
+      if (iframe && iframe.src && iframe.src !== "about:blank") {
+        waitOverlay.style.display = "none";
+        iframe.style.opacity = "1";
+        iframe.style.pointerEvents = "auto";
+        try {
+          iframe.contentWindow && iframe.contentWindow.postMessage({ type: "olleh-scroll-latest" }, "*");
+        } catch (e) {
+          logDebug("Failed to request scroll-latest from iframe", e);
+        }
+        return;
+      }
+  
+      var now = Date.now();
+      var remaining = getEffectiveRemainingMs(now);
+      if (remaining > 0) {
+        showWaitOverlay();
+        startWaitCountdown(function(){
+          loadIframe();
+        }, now + remaining);
+        return;
+      }
+      waitOverlay.style.display = "none";
+      iframe.style.opacity = "1";
+      iframe.style.pointerEvents = "auto";
+      loadIframe();
     }
   
     function closeModal() {
@@ -356,9 +757,15 @@
         modal.style.right = pos.right || modal.style.right;
         modal.style.bottom = pos.bottom || modal.style.bottom;
       }, 200);
-      // reset iframe so previous chat doesn't flash next time
-      iframe.src = "about:blank";
       modalCloseBtn.style.display = "none";
+    }
+  
+    function showClosePrompt() {
+      confirmOverlay.style.display = "flex";
+    }
+  
+    function hideClosePrompt() {
+      confirmOverlay.style.display = "none";
     }
   
     function toggleModal() { 
@@ -370,7 +777,41 @@
     function handleMessage(event) {
       if (!event || !event.data) return;
       if (event.data.type === "olleh-close-widget") {
-        closeModal();
+        showClosePrompt();
+        return;
+      }
+      if (event.data.type === "olleh-user-context") {
+        try {
+          if (event.data.userId) {
+            lastUserId = Number(event.data.userId);
+          }
+          if (event.data.hadRoom) {
+            hadConnected = true;
+          }
+        } catch (e) {
+          logDebug("Failed to capture user context", e);
+        }
+        return;
+      }
+      if (event.data.type === "olleh-delete-room") {
+        try {
+          if (event.data.userId) {
+            lastUserId = Number(event.data.userId);
+          }
+        } catch (e) {
+          logDebug("Failed to capture delete-room payload", e);
+        }
+        deleteRoomOnClose();
+        return;
+      }
+      if (event.data.type === "olleh-check-wait") {
+        var rem = getRemainingWaitMs();
+        logDebug("Iframe asked for wait status", { remainingMs: rem });
+        try {
+          event.source && event.source.postMessage({ type: "olleh-wait-status", remainingMs: rem }, "*");
+        } catch (e) {
+          logDebug("Failed to post wait status", e);
+        }
       }
     }
     window.addEventListener("message", handleMessage);
@@ -403,4 +844,9 @@
   
     w.addEventListener("resize", handleResize);
     handleResize();
+  
+    // On page unload, best-effort delete room if we ever connected
+    w.addEventListener("beforeunload", function(){
+      try { deleteRoomOnClose(); } catch (e) { logDebug("delete_room on unload failed", e); }
+    });
   })();
