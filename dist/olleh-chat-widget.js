@@ -30,7 +30,7 @@
     var detachViewportSync = function () {};
     var lastScrollY = 0;
   
-    var WAIT_MS = 15000; // 15s gate when fully closing the chat
+    var WAIT_MS = 20000; // 15s gate when fully closing the chat
     var waitTimerId = null;
     var waitOverlay = null;
     var waitCountdown = null;
