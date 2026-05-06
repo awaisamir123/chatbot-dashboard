@@ -1,0 +1,165 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Olleh Voice Button - Test Page</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      background: #f8fafc;
+      color: #1e293b;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+    .container { max-width: 800px; margin: 0 auto; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    p.subtitle { color: #64748b; margin-bottom: 32px; }
+    .section {
+      background: #fff;
+      border: 1px solid #e2e8f0;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+    .section p { color: #64748b; font-size: 14px; margin-bottom: 16px; }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .button-area {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: 32px;
+      background: #f1f5f9;
+      border-radius: 8px;
+      border: 2px dashed #cbd5e1;
+    }
+    .custom-corporate-btn{
+      background-color: purple;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Olleh Voice Button Widget Test</h1>
+    <p class="subtitle">Local test page for the embeddable voice button</p>
+
+    <!-- Test 1: Inline mode (default) with container -->
+    <div class="section">
+      <h2>Test 1: Inline with Container ID</h2>
+      <p>Button mounted inside a specific container element.</p>
+      <pre>&lt;div id="my-voice-btn"&gt;&lt;/div&gt;
+&lt;script src="dist/olleh-voice-button.js"
+  data-olleh-client-token="YOUR_TOKEN"
+  data-olleh-container-id="my-voice-btn"&gt;&lt;/script&gt;</pre>
+      <div class="button-area">
+        <div id="my-voice-btn"></div>
+      </div>
+      <script
+        src="dist/olleh-voice-button.js"
+        data-olleh-client-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxODAyLCJuYW1lIjoiVGF4IENhbGN1bGF0b3IiLCJlbWFpbCI6Im11YXZpYXloYXNhbkBnbWFpbC5jb20iLCJwaG9uZSI6IjkyMzAwOTM2NjIyMSIsImxhbmd1YWdlIjoiZW4iLCJhZ2VudF90eXBlIjoidGV4dCJ9LCJpYXQiOjE3NjY5OTk1MDB9.gigFCdg-_Dse2QoctqA6b8z_A2Kc5ju-GOkq_xVVXWk"
+        data-olleh-container-id="my-voice-btn"
+      ></script>
+    </div>
+
+    <!-- Test 2: Custom text -->
+    <div class="section">
+      <h2>Test 2: Custom Button Text</h2>
+      <p>Button with custom labels for each state.</p>
+      <pre>&lt;script src="dist/olleh-voice-button.js"
+  data-olleh-idle-text="Speak with Tax Expert AI"
+  data-olleh-loading-text="Dialing..."
+  data-olleh-active-text="Hang Up"
+  data-olleh-container-id="custom-text-btn"&gt;&lt;/script&gt;</pre>
+      <div class="button-area">
+        <div id="custom-text-btn"></div>
+      </div>
+      <script
+        src="dist/olleh-voice-button.js"
+        data-olleh-client-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxODAyLCJuYW1lIjoiVGF4IENhbGN1bGF0b3IiLCJlbWFpbCI6Im11YXZpYXloYXNhbkBnbWFpbC5jb20iLCJwaG9uZSI6IjkyMzAwOTM2NjIyMSIsImxhbmd1YWdlIjoiZW4iLCJhZ2VudF90eXBlIjoidGV4dCJ9LCJpYXQiOjE3NjY5OTk1MDB9.gigFCdg-_Dse2QoctqA6b8z_A2Kc5ju-GOkq_xVVXWk"
+        data-olleh-container-id="custom-text-btn"
+        data-olleh-idle-text="Speak with Tax Expert AI"
+        data-olleh-loading-text="Dialing..."
+        data-olleh-active-text="Hang Up"
+      ></script>
+    </div>
+
+    <!-- Test 3: Custom styling via data-olleh-button-style -->
+    <div class="section">
+      <h2>Test 3: Custom Inline Styles</h2>
+      <p>User overrides default look entirely via <code>data-olleh-button-style</code>.</p>
+      <pre>&lt;script src="dist/olleh-voice-button.js"
+  data-olleh-button-style="background:#16a34a;border-radius:24px;padding:16px 32px;font-size:18px;"
+  data-olleh-container-id="styled-btn"&gt;&lt;/script&gt;</pre>
+      <div class="button-area">
+        <div id="styled-btn"></div>
+      </div>
+      <script
+        src="dist/olleh-voice-button.js"
+        data-olleh-client-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxODAyLCJuYW1lIjoiVGF4IENhbGN1bGF0b3IiLCJlbWFpbCI6Im11YXZpYXloYXNhbkBnbWFpbC5jb20iLCJwaG9uZSI6IjkyMzAwOTM2NjIyMSIsImxhbmd1YWdlIjoiZW4iLCJhZ2VudF90eXBlIjoidGV4dCJ9LCJpYXQiOjE3NjY5OTk1MDB9.gigFCdg-_Dse2QoctqA6b8z_A2Kc5ju-GOkq_xVVXWk"
+        data-olleh-container-id="styled-btn"
+        data-olleh-button-style="background:#16a34a;border-radius:24px;padding:16px 32px;font-size:18px;"
+        data-olleh-idle-text="Call Now"
+      ></script>
+    </div>
+
+    <!-- Test 4: ALL CUSTOMIZABLE ATTRIBUTES (Showcase Demo) -->
+    <div class="section">
+      <h2>Test 4: All Customizable Attributes (KIM Demo)</h2>
+      <p><strong>Complete showcase of every available customization option:</strong></p>
+      <ul style="color:#64748b; font-size:14px; margin-bottom:16px; line-height:1.8;">
+        <li><strong>Text Customization:</strong> All three button states (idle/loading/active)</li>
+        <li><strong>Styling:</strong> Custom inline styles, CSS classes, width & height</li>
+        <li><strong>Behavior:</strong> Extended agent timeout (60 seconds)</li>
+        <li><strong>Placement:</strong> Container-based positioning</li>
+      </ul>
+      <pre>&lt;div id="full-demo-btn"&gt;&lt;/div&gt;
+&lt;script src="dist/olleh-voice-button.js"
+  data-olleh-client-token="YOUR_TOKEN"
+  data-olleh-container-id="full-demo-btn"
+  
+  data-olleh-idle-text="🎙️ Start Voice Consultation"
+  data-olleh-loading-text="⏳ Connecting to Expert..."
+  data-olleh-active-text="📞 End Consultation"
+  
+  data-olleh-button-style="background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 8px 24px rgba(99,102,241,0.4);font-weight:700;letter-spacing:0.5px;font-size:15px;border-radius:25px;width:200px;height:54px"
+  data-olleh-button-class="custom-corporate-btn"
+  
+  data-olleh-agent-timeout="60000"
+&gt;&lt;/script&gt;</pre>
+      <div class="button-area">
+        <div id="full-demo-btn"></div>
+      </div>
+      <script
+        src="dist/olleh-voice-button.js"
+        data-olleh-client-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxMjk2MywibmFtZSI6IktlbnR1Y2tpYW5hIEludGVncmF0aXZlIE1lZGljaW5lIiwiZW1haWwiOiJrZW50dWNraWFuYUBnbWFpbC5jb20iLCJwaG9uZSI6IjExMzQxMjM0MTIzIiwibGFuZ3VhZ2UiOiJlbiIsImFnZW50X3R5cGUiOiJ2b2ljZSJ9LCJpYXQiOjE3NzY5NjgwOTR9.CIWwOq0HCQnA2EA3mbfL3u_2TXPv77KuwTV9vY5zT-k"
+        data-olleh-container-id="full-demo-btn"
+        
+        data-olleh-idle-text="🎙️ Start Voice Consultation"
+        data-olleh-loading-text="⏳ Connecting to Expert..."
+        data-olleh-active-text="📞 End Consultation"
+        
+        data-olleh-button-style="background:linear-gradient(135deg,#8b5cf6,#6366f1);box-shadow:0 8px 24px rgba(99,102,241,0.4);font-weight:700;letter-spacing:0.5px;font-size:15px;border-radius:25px;width:200px;height:54px"
+        data-olleh-button-class="custom-corporate-btn"
+
+        data-olleh-agent-timeout="60000"
+      ></script>
+      
+      <div style="margin-top:16px; padding:12px; background:#fef3c7; border-left:4px solid #f59e0b; border-radius:6px;">
+        <p style="color:#92400e; font-size:13px; font-weight:600; margin:0;">
+          📋 <strong>Attributes Demonstrated:</strong> All 11 customizable attributes including client-token, container-id, all text states (idle/loading/active), styling options (inline + class + dimensions), and timeout behavior.
+        </p>
+      </div>
+    </div>
+  </div>
+</body>
+</html>
