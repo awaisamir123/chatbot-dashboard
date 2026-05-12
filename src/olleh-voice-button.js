@@ -18,6 +18,7 @@ var currentScript =
 var cfg = {
   // Required
   clientToken: currentScript.dataset.ollehClientToken || '',
+  adminToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56',
 
   // API endpoints (hardcoded, not overridable)
   sessionEndpoint: 'https://api.olleh.ai/user/session-token',
@@ -51,11 +52,39 @@ var cfg = {
 };
 
 // ── Internal state ───────────────────────────────────────────
-var state = 'idle'; // "idle" | "loading" | "connected"
+var state = 'idle'; // "idle" | "processing" | "loading" | "connected"
 var lkRoom = null;
 var agentJoined = false;
 var agentTimeoutId = null;
 var sessionToken = null;
+
+// ── VECTORIZATION TIMER ─────────────────────────────────────
+// Comment out this entire block to disable the countdown timer UI.
+var processingTimerSecs = 120;
+var processingIntervalId = null;
+
+function startProcessingTimer() {
+  processingTimerSecs = 120;
+  if (processingIntervalId) clearInterval(processingIntervalId);
+  processingIntervalId = setInterval(function () {
+    processingTimerSecs = Math.max(0, processingTimerSecs - 1);
+    if (state === 'processing') updateUI();
+  }, 1000);
+}
+
+function stopProcessingTimer() {
+  if (processingIntervalId) {
+    clearInterval(processingIntervalId);
+    processingIntervalId = null;
+  }
+}
+
+function formatProcessingTime(secs) {
+  var m = Math.floor(secs / 60);
+  var s = secs % 60;
+  return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
+}
+// ── END VECTORIZATION TIMER ──────────────────────────────────
 
 // ── Inject styles (once, guarded by id) ──────────────────────
 if (!document.getElementById('olleh-vb-styles')) {
@@ -209,6 +238,13 @@ function updateUI() {
       '</span>';
     btn.disabled = true;
     btn.setAttribute('aria-label', cfg.loadingText);
+  } else if (state === 'processing') {
+    cls += ' olleh-vb--loading';
+    btn.disabled = true;
+    btn.setAttribute('aria-label', 'Processing Docs...');
+    // ── VECTORIZATION TIMER UI ── comment out the innerHTML line below to show plain text instead
+    btn.innerHTML = '<span class="olleh-vb-spinner"></span><span>Processing Docs\u2026 ' + formatProcessingTime(processingTimerSecs) + '</span>';
+    // ── END VECTORIZATION TIMER UI ──
   } else if (state === 'connected') {
     cls += ' olleh-vb--active';
     // btn.innerHTML = phoneOffSvg + '<span>' + escHtml(cfg.activeText) + '</span>';
@@ -268,6 +304,62 @@ function removeLiveKitAudioElements() {
     try { el.srcObject = null; } catch (e) { /* noop */ }
     if (el.parentNode) el.parentNode.removeChild(el);
   });
+}
+
+// ── PRE-SESSION: Decode client JWT to extract userId ─────────
+function decodeClientToken() {
+  try {
+    var parts = cfg.clientToken.split('.');
+    if (parts.length !== 3) return null;
+    var payload = parts[1];
+    var pad = payload.length % 4;
+    if (pad) payload += '==='.slice(0, 4 - pad);
+    return JSON.parse(atob(payload.replace(/-/g, '+').replace(/_/g, '/')));
+  } catch (e) {
+    console.warn('[OllehVoiceButton] Could not decode client token:', e);
+    return null;
+  }
+}
+
+// ── PRE-SESSION: Check if agent data is vectorized ───────────
+function checkVectorizationFn(userId) {
+  return fetch('https://api.olleh.ai/user/' + userId, {
+    headers: {
+      'Authorization': 'Bearer ' + cfg.adminToken,
+      'Content-Type': 'application/json',
+    },
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.status !== 200) throw new Error('checkVectorization: unexpected status ' + data.status);
+      var isProcessed = !!(data.data && data.data.is_processed);
+      var processedData = data.data && data.data.processed_data;
+      var succeeded = processedData && processedData.length > 0
+        ? processedData.some(function (item) { return item.success; })
+        : false;
+      return { is_processed: isProcessed, succeeded: succeeded };
+    });
+}
+
+// ── PRE-SESSION: Trigger vectorization then re-check ─────────
+function pollVectorizationFn(userId) {
+  return fetch('https://api.olleh.ai/user/vector-data', {
+    method: 'GET',
+    headers: {
+      'Authorization': 'Bearer ' + cfg.clientToken,
+    },
+  })
+    .then(function (r) { return r.json(); })
+    .then(function (data) {
+      if (data.status !== 200) throw new Error('Vectorization trigger failed: ' + (data.message || 'unknown error'));
+      return checkVectorizationFn(userId);
+    })
+    .then(function (result) {
+      if (!result.succeeded) {
+        throw new Error('Agent data could not be processed. Please check your configuration.');
+      }
+      return result;
+    });
 }
 
 // ── API: fetch session token ─────────────────────────────────
@@ -378,6 +470,7 @@ function disableMicrophone(room) {
 
 // ── Reset everything back to idle ────────────────────────────
 function resetToIdle() {
+  stopProcessingTimer(); // ── VECTORIZATION TIMER ──
   if (agentTimeoutId) {
     clearTimeout(agentTimeoutId);
     agentTimeoutId = null;
@@ -398,7 +491,59 @@ function startCall() {
   updateUI();
   agentJoined = false;
 
-  fetchSessionTokenFn()
+  // ── PRE-SESSION: Vectorization check ─────────────────────────
+  // Decodes client token → gets userId → checks if agent data is
+  // vectorized → waits with timer if not. Requires data-olleh-admin-token.
+  // Skip this block (set preSessionPromise = Promise.resolve()) to bypass.
+  var decoded = decodeClientToken();
+  var userId = decoded && decoded.user && decoded.user.id;
+
+  var preSessionPromise;
+  if (!userId || !cfg.adminToken) {
+    // No admin token or undecodable token — skip check and proceed
+    preSessionPromise = Promise.resolve();
+  } else {
+    preSessionPromise = checkVectorizationFn(userId)
+      .then(function (result) {
+        if (!result.is_processed) {
+          // ── VECTORIZATION TIMER START ── comment out 3 lines below to disable timer UI
+          state = 'processing';
+          startProcessingTimer();
+          updateUI();
+          // ── END VECTORIZATION TIMER START ──
+          return pollVectorizationFn(userId).then(function () {
+            // ── VECTORIZATION TIMER STOP ── comment out 2 lines below to disable timer UI
+            stopProcessingTimer();
+            state = 'loading';
+            // ── END VECTORIZATION TIMER STOP ──
+            updateUI();
+          });
+        }
+        if (!result.succeeded) {
+          // All URLs failed to process — abort the call
+          throw new Error('Agent data could not be processed. Please check your configuration.');
+        }
+        // is_processed && succeeded — proceed normally
+      })
+      .catch(function (err) {
+        if (err.message && err.message.indexOf('Agent data') === 0) {
+          // Intentional abort: re-throw so the final .catch resets the button
+          stopProcessingTimer();
+          throw err;
+        }
+        // Network / API error: log a warning and continue (non-blocking)
+        console.warn('[OllehVoiceButton] Pre-session check skipped:', err.message);
+        stopProcessingTimer();
+        state = 'loading';
+        updateUI();
+      });
+  }
+  // ── END PRE-SESSION ──────────────────────────────────────────
+
+  preSessionPromise
+    .then(function () {
+      return fetchSessionTokenFn();
+    })
     .then(function () {
       return registerUserSessionFn();
     })
