@@ -46,6 +46,13 @@ var cfg = {
   // Styling overrides
   buttonStyle: currentScript.dataset.ollehButtonStyle || '',
   buttonClass: currentScript.dataset.ollehButtonClass || '',
+  buttonBg: currentScript.dataset.ollehButtonBg || '',   // overrides bg in idle/loading; active is always red
+
+  // Audio bars
+  audioBars:
+    currentScript.dataset.ollehAudioBars !== undefined
+      ? currentScript.dataset.ollehAudioBars === 'true'
+      : false,
 
   // Behaviour
   agentTimeout: parseInt(currentScript.dataset.ollehAgentTimeout || '45000', 10),
@@ -57,6 +64,7 @@ var lkRoom = null;
 var agentJoined = false;
 var agentTimeoutId = null;
 var sessionToken = null;
+var isSpeaking = false;
 
 // ── VECTORIZATION TIMER ─────────────────────────────────────
 // Comment out this entire block to disable the countdown timer UI.
@@ -85,6 +93,58 @@ function formatProcessingTime(secs) {
   return (m < 10 ? '0' : '') + m + ':' + (s < 10 ? '0' : '') + s;
 }
 // ── END VECTORIZATION TIMER ──────────────────────────────────
+
+// ── CUSTOM BEAT ANIMATION COLOR ──────────────────────────────
+// Converts any CSS color to rgba string for beat animation
+function parseColorToRgba(color) {
+  var canvas = document.createElement('canvas');
+  canvas.width = canvas.height = 1;
+  var ctx = canvas.getContext('2d');
+  ctx.fillStyle = color;
+  ctx.fillRect(0, 0, 1, 1);
+  var d = ctx.getImageData(0, 0, 1, 1).data;
+  return 'rgba(' + d[0] + ', ' + d[1] + ', ' + d[2] + ', ' + (d[3] / 255) + ')';
+}
+
+function injectCustomBeatAnimation(bgColor) {
+  var rgba = parseColorToRgba(bgColor);
+  var parts = rgba.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)/);
+  if (!parts) return null;
+  var r = parts[1], g = parts[2], b = parts[3];
+  
+  var animName = 'ollehVbBeatCustom';
+  var keyframes = '@keyframes ' + animName + ' {' +
+    '0%  { box-shadow: 0 0 0 0   rgba(' + r + ',' + g + ',' + b + ',0.5); }' +
+    '70% { box-shadow: 0 0 0 12px rgba(' + r + ',' + g + ',' + b + ',0); }' +
+    '100%{ box-shadow: 0 0 0 0   rgba(' + r + ',' + g + ',' + b + ',0); }' +
+  '}';
+  
+  if (!document.getElementById('olleh-vb-custom-beat')) {
+    var style = document.createElement('style');
+    style.id = 'olleh-vb-custom-beat';
+    style.textContent = keyframes;
+    document.head.appendChild(style);
+  } else {
+    document.getElementById('olleh-vb-custom-beat').textContent = keyframes;
+  }
+  
+  return animName;
+}
+// ── END CUSTOM BEAT ANIMATION COLOR ──────────────────────────
+
+function getAudioBarsHtml() {
+  if (!cfg.audioBars || !isSpeaking) return '';
+
+  return (
+    '<span class="olleh-vb-audio-bars animating" aria-hidden="true">' +
+      '<span class="olleh-vb-bar"></span>' +
+      '<span class="olleh-vb-bar"></span>' +
+      '<span class="olleh-vb-bar"></span>' +
+      '<span class="olleh-vb-bar"></span>' +
+      '<span class="olleh-vb-bar"></span>' +
+    '</span>'
+  );
+}
 
 // ── Inject styles (once, guarded by id) ──────────────────────
 if (!document.getElementById('olleh-vb-styles')) {
@@ -131,6 +191,9 @@ if (!document.getElementById('olleh-vb-styles')) {
     '  pointer-events: none;',
     '  box-shadow: 0 0 0 0 rgba(7, 152, 228, 0.5);',
     '  animation: ollehVbBeat 2s ease-out infinite;',
+    '}',
+    '.olleh-vb--idle[data-custom-beat]::after {',
+    '  animation: ollehVbBeatCustom 2s ease-out infinite;',
     '}',
     '@keyframes ollehVbBeat {',
     '  0%  { box-shadow: 0 0 0 0   rgba(7, 152, 228, 0.5); }',
@@ -189,6 +252,41 @@ if (!document.getElementById('olleh-vb-styles')) {
     '  height: 18px;',
     '  flex-shrink: 0;',
     '}',
+
+    /* ── Audio bars ── */
+    '.olleh-vb-audio-bars {',
+    '  display: inline-flex;',
+    '  align-items: center;',
+    '  justify-content: center;',
+    '  gap: 3px;',
+    '  height: 20px;',
+    '  margin-left: 4px;',
+    '}',
+    '.olleh-vb-audio-bars .olleh-vb-bar {',
+    '  width: 4px;',
+    '  height: 20%;',
+    '  background-color: #ffffff;',
+    '  border-radius: 2px;',
+    '  animation: none;',
+    '}',
+    '.olleh-vb-audio-bars.animating .olleh-vb-bar {',
+    '  animation: ollehVbSoundWave 0.8s ease-in-out infinite;',
+    '}',
+    '.olleh-vb-audio-bars .olleh-vb-bar:nth-child(1) { animation-delay: 0.0s; }',
+    '.olleh-vb-audio-bars .olleh-vb-bar:nth-child(2) { animation-delay: 0.2s; }',
+    '.olleh-vb-audio-bars .olleh-vb-bar:nth-child(3) { animation-delay: 0.4s; }',
+    '.olleh-vb-audio-bars .olleh-vb-bar:nth-child(4) { animation-delay: 0.1s; }',
+    '.olleh-vb-audio-bars .olleh-vb-bar:nth-child(5) { animation-delay: 0.3s; }',
+    '@keyframes ollehVbSoundWave {',
+    '  0%, 100% {',
+    '    height: 20%;',
+    '    opacity: 0.5;',
+    '  }',
+    '  50% {',
+    '    height: 100%;',
+    '    opacity: 1;',
+    '  }',
+    '}',
   ].join('\n');
   document.head.appendChild(styleEl);
 }
@@ -216,8 +314,18 @@ var phoneOffSvg =
 var btn = document.createElement('button');
 btn.type = 'button';
 
+// ── Resolve the effective buttonStyle (strip bg props when buttonBg is set) ──
+var resolvedButtonStyle = cfg.buttonStyle;
+if (cfg.buttonBg && cfg.buttonStyle) {
+  // Remove background / background-color declarations so buttonBg wins
+  resolvedButtonStyle = cfg.buttonStyle
+    .replace(/background-color\s*:[^;]+;?/gi, '')
+    .replace(/background\s*:[^;]+;?/gi, '')
+    .trim();
+}
+
 // Apply user-supplied inline styles (persists across updateUI calls)
-if (cfg.buttonStyle) btn.style.cssText += ';' + cfg.buttonStyle;
+if (resolvedButtonStyle) btn.style.cssText += ';' + resolvedButtonStyle;
 
 // ── UI update (called on every state change) ─────────────────
 function updateUI() {
@@ -230,6 +338,21 @@ function updateUI() {
     btn.innerHTML = '<span>' + escHtml(cfg.idleText) + '</span>';
     btn.disabled = false;
     btn.setAttribute('aria-label', cfg.idleText);
+    // Apply custom bg (overrides CSS gradient for idle)
+    if (cfg.buttonBg) {
+      btn.style.background = cfg.buttonBg;
+      var animName = injectCustomBeatAnimation(cfg.buttonBg);
+      if (animName) {
+        btn.style.setProperty('--olleh-beat-anim', animName);
+        // Override the ::after animation via inline style on the element itself won't work,
+        // so we inject the custom keyframes and rely on a CSS variable approach.
+        // Actually, we can't set ::after animation via JS inline style.
+        // Solution: add a data attribute and use CSS selector.
+        btn.setAttribute('data-custom-beat', '1');
+      }
+    } else {
+      btn.removeAttribute('data-custom-beat');
+    }
   } else if (state === 'loading') {
     cls += ' olleh-vb--loading';
     btn.innerHTML =
@@ -238,6 +361,11 @@ function updateUI() {
       '</span>';
     btn.disabled = true;
     btn.setAttribute('aria-label', cfg.loadingText);
+    // Apply custom bg (overrides CSS gradient for loading)
+    if (cfg.buttonBg) {
+      btn.style.background = cfg.buttonBg;
+      // Loading state doesn't have beat animation, so no need to inject custom keyframes
+    }
   } else if (state === 'processing') {
     cls += ' olleh-vb--loading';
     btn.disabled = true;
@@ -245,12 +373,20 @@ function updateUI() {
     // ── VECTORIZATION TIMER UI ── comment out the innerHTML line below to show plain text instead
     btn.innerHTML = '<span class="olleh-vb-spinner"></span><span>Processing Docs\u2026 ' + formatProcessingTime(processingTimerSecs) + '</span>';
     // ── END VECTORIZATION TIMER UI ──
+    // Apply custom bg (overrides CSS gradient for processing)
+    if (cfg.buttonBg) {
+      btn.style.background = cfg.buttonBg;
+      // Processing state doesn't have beat animation, so no need to inject custom keyframes
+    }
   } else if (state === 'connected') {
     cls += ' olleh-vb--active';
     // btn.innerHTML = phoneOffSvg + '<span>' + escHtml(cfg.activeText) + '</span>';
-    btn.innerHTML = '<span>' + escHtml(cfg.activeText) + '</span>';
+    btn.innerHTML = '<span>' + escHtml(cfg.activeText) + '</span>' + getAudioBarsHtml();
     btn.disabled = false;
     btn.setAttribute('aria-label', cfg.activeText);
+    // Always clear any custom bg so the red CSS class takes full effect
+    btn.style.background = '';
+    btn.removeAttribute('data-custom-beat');
   }
 
   btn.className = cls;
@@ -376,7 +512,8 @@ function fetchSessionTokenFn() {
     var payload = {
       token: cfg.clientToken,
       session_id: sid,
-      origin: window.location.origin || '',
+      origin: 'https://www.w3schools.com',// window.location.origin || '',
+      agent_type: 'voice-button'
     };
 
     fetch(cfg.sessionEndpoint, {
@@ -470,15 +607,19 @@ function disableMicrophone(room) {
 
 // ── Reset everything back to idle ────────────────────────────
 function resetToIdle() {
-  stopProcessingTimer(); // ── VECTORIZATION TIMER ──
+  stopProcessingTimer();
+
   if (agentTimeoutId) {
     clearTimeout(agentTimeoutId);
     agentTimeoutId = null;
   }
+
   lkRoom = null;
   agentJoined = false;
   sessionToken = null;
+  isSpeaking = false;
   state = 'idle';
+
   updateUI();
   removeLiveKitAudioElements();
 }
@@ -589,6 +730,18 @@ function startCall() {
         enableMicrophone(lkRoom);
       });
 
+      lkRoom.on(RoomEvent.ActiveSpeakersChanged, function (speakers) {
+        var nextIsSpeaking = !!(speakers && speakers.length > 0);
+
+        if (isSpeaking !== nextIsSpeaking) {
+          isSpeaking = nextIsSpeaking;
+
+          if (state === 'connected') {
+            updateUI();
+          }
+        }
+      });
+
       lkRoom.on(RoomEvent.ParticipantConnected, function (participant) {
         var isAgent =
           participant.identity &&
@@ -681,6 +834,7 @@ function endCall() {
   }
 
   state = 'idle';
+  isSpeaking = false;
   updateUI();
   removeLiveKitAudioElements();
 }
