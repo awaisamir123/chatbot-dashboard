@@ -512,7 +512,7 @@ function fetchSessionTokenFn() {
     var payload = {
       token: cfg.clientToken,
       session_id: sid,
-      origin: 'https://www.w3schools.com',// window.location.origin || '',
+      origin: window.location.origin || '',
       agent_type: 'voice-button'
     };
 
