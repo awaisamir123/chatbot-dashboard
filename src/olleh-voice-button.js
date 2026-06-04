@@ -551,10 +551,10 @@ function fetchSessionTokenFn() {
 // ── API: register user session → get LiveKit token ───────────
 function registerUserSessionFn() {
   return new Promise(function (resolve, reject) {
+    var end_user_timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     var body = {
       token: sessionToken,
-      session_token: sessionToken,
-      access_token: sessionToken,
+      end_user_timezone: end_user_timezone,
     };
 
     fetch(cfg.registerEndpoint, {
