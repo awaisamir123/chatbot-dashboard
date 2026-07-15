@@ -7,7 +7,8 @@
     "build": "next build",
     "start": "next start",
     "lint": "next lint",
-    "build:voice-button": "node build-voice-button.mjs"
+    "build:voice-button": "node build-voice-button.mjs",
+    "build:chat-panel": "node build-chat-panel.mjs"
   },
   "dependencies": {
     "@supabase/supabase-js": "^2.38.0",

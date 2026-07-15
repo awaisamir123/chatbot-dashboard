@@ -1,0 +1,80 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Olleh Chat Panel - Test Page</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+    body {
+      font-family: Inter, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+      background: #fbf9f8;
+      color: #1b1c1c;
+      min-height: 100vh;
+      padding: 40px 24px;
+    }
+    .container { max-width: 720px; margin: 0 auto; }
+    h1 { font-size: 28px; font-weight: 700; margin-bottom: 8px; }
+    p.subtitle { color: #564146; margin-bottom: 32px; }
+    .section {
+      background: #fff;
+      border: 1px solid #F1F1F1;
+      border-radius: 12px;
+      padding: 24px;
+      margin-bottom: 24px;
+    }
+    .section h2 { font-size: 18px; font-weight: 600; margin-bottom: 12px; }
+    .section p { color: #564146; }
+    pre {
+      background: #1e293b;
+      color: #e2e8f0;
+      padding: 16px;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 13px;
+      margin-bottom: 16px;
+    }
+    .panel-area {
+      height: 560px;
+      background: #f6f3f2;
+      border-radius: 12px;
+      border: 2px dashed #dcc0c5;
+      padding: 16px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>Olleh Chat Panel Widget Test</h1>
+    <p class="subtitle">Julianna Private card design — icon + primary color via script attributes</p>
+
+    <div class="section">
+      <h2>Container mount</h2>
+      <p>Panel mounts into a host container. Pass <code>data-olleh-logo-src</code> and <code>data-olleh-primary-color</code> for branding.</p>
+      <pre>&lt;div id="olleh-chat" style="height:480px"&gt;&lt;/div&gt;
+&lt;script
+  src="dist/olleh-chat-panel.js"
+  data-olleh-client-token="YOUR_TOKEN"
+  data-olleh-container-id="olleh-chat"
+  data-olleh-title="Julianna"
+  data-olleh-primary-color="#6c0034"
+  data-olleh-placeholder="Whisper your thoughts..."
+  data-olleh-logo-src="https://olleh.ai/assets/common/woman-avatar.jpg"
+&gt;&lt;/script&gt;</pre>
+      <div class="panel-area">
+        <div id="olleh-chat" style="height:100%;"></div>
+      </div>
+      <script
+      src="https://cdn.jsdelivr.net/gh/awaisamir123/chatbot-dashboard/dist/olleh-chat-panel.js"
+      data-olleh-client-token="eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJ1c2VyIjp7ImlkIjoxNTA3MCwibmFtZSI6IktlbnR1Y2tpYW5hIEludGVncmF0aXZlIE1lZGljaW5lIiwiZW1haWwiOiJkZW1vX2tpbTJAeW9wbWFpbC5jb20iLCJwaG9uZSI6IjExMjM0MTkyMDM4IiwibGFuZ3VhZ2UiOiJlbiIsImFnZW50X3R5cGUiOiJ0ZXh0In0sImlhdCI6MTc3ODIzMDc2Nn0.mH9msPrfLJPY2ZOWMTi8iG8ZFlWu3e9CwwKr5n6d2xs"
+      data-olleh-container-id="olleh-chat"
+      data-olleh-title="Julianna"
+      data-olleh-primary-color="#6c0034"
+      data-olleh-placeholder="Ask anything..."
+      data-olleh-logo-src="https://olleh.ai/assets/common/woman-avatar.jpg"
+      data-olleh-origin="https://www.w3schools.com"
+    ></script>
+    </div>
+  </div>
+</body>
+</html>
