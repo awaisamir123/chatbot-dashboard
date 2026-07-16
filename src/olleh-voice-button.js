@@ -176,7 +176,7 @@ if (!document.getElementById('olleh-vb-styles')) {
 
     /* ── Idle state ── */
     '.olleh-vb--idle {',
-    '  background: linear-gradient(135deg, #0578be, #0798e4) !important;',
+    '  background: linear-gradient(135deg, #0578be, #0798e4);',
     '  color: #fff !important;',
     '  box-shadow: 0 4px 14px rgba(7, 152, 228, 0.4) !important;',
     '}',
@@ -359,6 +359,7 @@ function updateUI() {
         btn.setAttribute('data-custom-beat', '1');
       }
     } else {
+      btn.style.background = 'linear-gradient(135deg, #0578be, #0798e4)';
       btn.removeAttribute('data-custom-beat');
     }
   } else if (state === 'loading') {
@@ -370,10 +371,7 @@ function updateUI() {
     btn.disabled = true;
     btn.setAttribute('aria-label', cfg.loadingText);
     // Apply custom bg (overrides CSS gradient for loading)
-    if (cfg.buttonBg) {
-      btn.style.background = cfg.buttonBg;
-      // Loading state doesn't have beat animation, so no need to inject custom keyframes
-    }
+    btn.style.background = cfg.buttonBg || 'linear-gradient(135deg, #64748b, #94a3b8)';
   } else if (state === 'processing') {
     cls += ' olleh-vb--loading';
     btn.disabled = true;
@@ -382,18 +380,15 @@ function updateUI() {
     btn.innerHTML = '<span class="olleh-vb-spinner"></span><span>Processing Docs\u2026 ' + formatProcessingTime(processingTimerSecs) + '</span>';
     // ── END VECTORIZATION TIMER UI ──
     // Apply custom bg (overrides CSS gradient for processing)
-    if (cfg.buttonBg) {
-      btn.style.background = cfg.buttonBg;
-      // Processing state doesn't have beat animation, so no need to inject custom keyframes
-    }
+    btn.style.background = cfg.buttonBg || 'linear-gradient(135deg, #64748b, #94a3b8)';
   } else if (state === 'connected') {
     cls += ' olleh-vb--active';
     // btn.innerHTML = phoneOffSvg + '<span>' + escHtml(cfg.activeText) + '</span>';
     btn.innerHTML = '<span>' + escHtml(cfg.activeText) + '</span>' + getAudioBarsHtml();
     btn.disabled = false;
     btn.setAttribute('aria-label', cfg.activeText);
-    // Always clear any custom bg so the red CSS class takes full effect
-    btn.style.background = '';
+    // Always force red via inline style so theme cannot override it
+    btn.style.background = 'linear-gradient(135deg, #dc2626, #ef4444)';
     btn.removeAttribute('data-custom-beat');
   }
 
