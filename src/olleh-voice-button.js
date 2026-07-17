@@ -551,6 +551,16 @@ function registerUserSessionFn() {
       token: sessionToken,
       end_user_timezone: end_user_timezone,
     };
+    var endUserId =
+      window.ollehUser && window.ollehUser.id != null
+        ? String(window.ollehUser.id).trim()
+        : '';
+    if (endUserId) body.end_user_id = endUserId;
+
+    console.log('[OllehVoiceButton] register_user_session request', {
+      end_user_id: endUserId || null,
+      end_user_timezone: end_user_timezone,
+    });
 
     fetch(cfg.registerEndpoint, {
       method: 'POST',

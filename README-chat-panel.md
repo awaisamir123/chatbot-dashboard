@@ -5,6 +5,9 @@ Self-contained embeddable chat panel that connects end-users to an Olleh AI text
 ## Quick Start
 
 ```html
+<script>
+  window.ollehUser = { id: 'YOUR_END_USER_ID' };
+</script>
 <div id="olleh-chat" style="height:480px;width:100%;"></div>
 <script
   src="https://cdn.jsdelivr.net/gh/awaisamir123/chatbot-dashboard/dist/olleh-chat-panel.js"
@@ -16,6 +19,8 @@ Self-contained embeddable chat panel that connects end-users to an Olleh AI text
   data-olleh-logo-src="https://example.com/your-agent-portrait.jpg"
 ></script>
 ```
+
+Optional: set `window.ollehUser = { id: '...' }` before the widget script. When present, it is sent as `end_user_id` on `register_user_session`.
 
 ## Build
 

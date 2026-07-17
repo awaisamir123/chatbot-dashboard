@@ -769,6 +769,16 @@ function initChatPanel() {
       token: sessToken,
       end_user_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
+    var endUserId =
+      window.ollehUser && window.ollehUser.id != null
+        ? String(window.ollehUser.id).trim()
+        : '';
+    if (endUserId) body.end_user_id = endUserId;
+
+    console.log('[OllehChatPanel] register_user_session request', {
+      end_user_id: endUserId || null,
+      end_user_timezone: body.end_user_timezone,
+    });
 
     return fetch(cfg.registerEndpoint, {
       method: 'POST',
