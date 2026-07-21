@@ -56,6 +56,12 @@ var cfg = {
 
   // Behaviour
   agentTimeout: parseInt(currentScript.dataset.ollehAgentTimeout || '45000', 10),
+
+  // Origin for session-token allowlisting (omit attr → location.origin)
+  origin:
+    currentScript.dataset.ollehOrigin !== undefined
+      ? currentScript.dataset.ollehOrigin
+      : null,
 };
 
 // ── Internal state ───────────────────────────────────────────
@@ -502,6 +508,15 @@ function pollVectorizationFn(userId) {
 }
 
 // ── API: fetch session token ─────────────────────────────────
+function resolveOrigin() {
+  if (cfg.origin !== null && cfg.origin !== undefined) return cfg.origin;
+  try {
+    return window.location.origin || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function fetchSessionTokenFn() {
   return new Promise(function (resolve, reject) {
     var sid =
@@ -515,7 +530,7 @@ function fetchSessionTokenFn() {
     var payload = {
       token: cfg.clientToken,
       session_id: sid,
-      origin: window.location.origin || '',
+      origin: resolveOrigin(),
       agent_type: 'voice-button'
     };
 

@@ -12,7 +12,9 @@
     primaryColor: script?.dataset.primaryColor || "#4f46e5",
     secondaryColor: script?.dataset.secondaryColor || "#f4f6fb",
       iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png",
-      buttonPosition: script?.dataset.buttonPosition || "bottom-right"
+      buttonPosition: script?.dataset.buttonPosition || "bottom-right",
+      // Origin for session-token (omit attr → location.origin)
+      origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null
     };
   
     // Delete-room API configuration (kept local, not in cfg)
@@ -106,10 +108,19 @@
       }
     }
   
+    function resolveOrigin() {
+      if (cfg.origin !== null && cfg.origin !== undefined) return cfg.origin;
+      try {
+        return location.origin || "";
+      } catch (e) {
+        return "";
+      }
+    }
+
     function fetchSessionToken(endpoint, clientToken, sessionId) {
       return new Promise(function (resolve, reject) {
         if (!endpoint || !clientToken) return reject(new Error("missing endpoint or client token"));
-        var payload = { token: clientToken, session_id: sessionId, origin: location.origin || ""};
+        var payload = { token: clientToken, session_id: sessionId, origin: resolveOrigin() };
   
         function handle(r) {
           if (!r.ok) return r.text().then(function (t) { throw new Error("http " + r.status + ", " + t); });

@@ -111,6 +111,7 @@ All configuration is done via `data-*` attributes on the script tag.
 | Attribute | Default | Description |
 |-----------|---------|-------------|
 | `data-olleh-agent-timeout` | `45000` | Timeout in milliseconds to wait for agent to join |
+| `data-olleh-origin` | page `location.origin` | Origin sent on session-token. Omit to keep current behavior. |
  
 ## Examples
  

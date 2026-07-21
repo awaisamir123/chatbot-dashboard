@@ -11,7 +11,9 @@
 
     // client token and endpoint for session token
     clientToken: script?.dataset.ollehClientToken || script?.dataset.ollehToken || "",
-    sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token"
+    sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
+    // Origin for session-token (omit attr → location.origin)
+    origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null
   };
 
   if (w.__OLLEH_EMBED_ACTIVE__) return;
@@ -220,16 +222,26 @@
     }
   }
 
+function resolveOrigin(){
+  if (cfg.origin !== null && cfg.origin !== undefined) return cfg.origin;
+  try {
+    return location.origin || '';
+  } catch (e) {
+    return '';
+  }
+}
+
 function fetchSessionToken(endpoint, clientToken, sessionId){
   return new Promise(function(resolve, reject){
     if(!endpoint || !clientToken){
       return reject(new Error('missing endpoint or client token'));
     }
 
+    var resolvedOrigin = resolveOrigin();
     var payload = {
       token: clientToken,
       session_id: sessionId,
-      origin: location.origin || ''
+      origin: resolvedOrigin
     };
 
     var forceForm = String(script?.dataset.ollehSessionFormat || "").toLowerCase() === "form";
@@ -237,7 +249,7 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     function postJson(){
       return fetch(endpoint, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json', "allow-origin": location.origin || "" },
+        headers: { 'Content-Type': 'application/json', "allow-origin": resolvedOrigin },
         body: JSON.stringify(payload)
       });
     }
