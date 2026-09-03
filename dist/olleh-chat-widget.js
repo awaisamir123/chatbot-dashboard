@@ -120,7 +120,7 @@
     function fetchSessionToken(endpoint, clientToken, sessionId) {
       return new Promise(function (resolve, reject) {
         if (!endpoint || !clientToken) return reject(new Error("missing endpoint or client token"));
-        var payload = { token: clientToken, session_id: sessionId, origin: resolveOrigin() };
+        var payload = { token: clientToken, session_id: sessionId, origin: resolveOrigin(), agent_type: 'text' };
   
         function handle(r) {
           if (!r.ok) return r.text().then(function (t) { throw new Error("http " + r.status + ", " + t); });

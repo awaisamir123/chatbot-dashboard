@@ -241,7 +241,8 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     var payload = {
       token: clientToken,
       session_id: sessionId,
-      origin: resolvedOrigin
+      origin: resolvedOrigin,
+      agent_type: 'voice'
     };
 
     var forceForm = String(script?.dataset.ollehSessionFormat || "").toLowerCase() === "form";
