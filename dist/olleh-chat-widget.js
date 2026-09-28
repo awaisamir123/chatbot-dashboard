@@ -23,6 +23,7 @@
     var lastUserId = null;
     var hadConnected = false;
     var agentHadJoined = false;
+    var activeSessionId = null, fallbackSessionId = null, fallbackTry = 0, loadId = 0;
   
     if (w.__OLLEH_CHAT_ACTIVE__) return;
     w.__OLLEH_CHAT_ACTIVE__ = true;
@@ -47,7 +48,7 @@
   
     function getSessionId() {
       try {
-        var key = "olleh_ai_session_id";
+        var key = "olleh_chat_widget_session_id";
         var sid = sessionStorage.getItem(key);
         if (!sid) {
           sid = (w.crypto && crypto.randomUUID) ? crypto.randomUUID() : "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
@@ -55,18 +56,34 @@
         }
         return sid;
       } catch (e) {
-        return "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        if (!fallbackSessionId) fallbackSessionId = "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        return fallbackSessionId;
+      }
+    }
+
+    function nextSessionAttempt() {
+      var sid = getSessionId();
+      try {
+        var key = "olleh_chat_widget_try_id";
+        var last = Number(sessionStorage.getItem(key) || 0);
+        if (!Number.isSafeInteger(last) || last < 0 || last === Number.MAX_SAFE_INTEGER) throw new Error("Invalid try counter");
+        var next = last + 1;
+        sessionStorage.setItem(key, String(next));
+        return sid + "T" + next;
+      } catch (e) {
+        if (!fallbackSessionId) fallbackSessionId = "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
+        fallbackTry += 1;
+        return fallbackSessionId + "T" + fallbackTry;
       }
     }
   
     function deleteRoomOnClose() {
-      if (!hadConnected || !lastUserId) {
+      if (!hadConnected || !lastUserId || !activeSessionId) {
         logDebug("delete_room skipped (no connection/user yet)");
         return;
       }
       try {
-        var sessionId = getSessionId() || null;
-        var payload = { user_id: lastUserId || null, session_id: sessionId || null };
+        var payload = { user_id: lastUserId, session_id: activeSessionId };
         fetch(DELETE_ROOM_ENDPOINT, {
           method: "POST",
           headers: {
@@ -446,6 +463,10 @@
     function handleCloseChat() {
       hideClosePrompt();
       deleteRoomOnClose();
+      hadConnected = false;
+      lastUserId = null;
+      activeSessionId = null;
+      loadId += 1;
       try {
         iframe.contentWindow && iframe.contentWindow.postMessage({ type: "olleh-force-disconnect" }, "*");
       } catch (e) {
@@ -704,9 +725,16 @@
     function loadIframe() {
       logDebug("Loading iframe");
       var baseUrl = stripTokenParam(cfg.iframeSrc);
-      fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, getSessionId())
-        .then(function(tkn){ iframe.src = buildIframeUrl(baseUrl, tkn); })
+      var sid = nextSessionAttempt();
+      var currentLoad = ++loadId;
+      fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
+        .then(function(tkn){
+          if (currentLoad !== loadId) return;
+          activeSessionId = sid;
+          iframe.src = buildIframeUrl(baseUrl, tkn);
+        })
         .catch(function(err){
+          if (currentLoad !== loadId) return;
           logDebug("Token fetch failed, fallback load", err);
           iframe.src = buildIframeUrl(cfg.iframeSrc, "");
         });

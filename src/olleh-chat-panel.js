@@ -70,7 +70,7 @@ var gradientEnd = currentScript.dataset.ollehPrimaryColor
   ? darkenHex(cfg.primaryColor, 40)
   : '#54102E';
 
-var SESSION_STORAGE_KEY = 'olleh_ai_session_id';
+var SESSION_STORAGE_KEY = 'olleh_chat_panel_session_id';
 
 if (window.__OLLEH_CHAT_PANEL_ACTIVE__) {
   console.warn('[OllehChatPanel] Already loaded; skipping duplicate init');

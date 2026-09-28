@@ -71,6 +71,8 @@ var agentJoined = false;
 var agentTimeoutId = null;
 var sessionToken = null;
 var isSpeaking = false;
+var fallbackSessionId = null;
+var fallbackTry = 0;
 
 // ── VECTORIZATION TIMER ─────────────────────────────────────
 // Comment out this entire block to disable the countdown timer UI.
@@ -517,15 +519,42 @@ function resolveOrigin() {
   }
 }
 
+function getSessionId() {
+  try {
+    var key = 'olleh_voice_button_session_id';
+    var sid = sessionStorage.getItem(key);
+    if (!sid) {
+      sid = window.crypto && crypto.randomUUID
+        ? crypto.randomUUID()
+        : 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      sessionStorage.setItem(key, sid);
+    }
+    return sid;
+  } catch (e) {
+    if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    return fallbackSessionId;
+  }
+}
+
+function nextSessionAttempt() {
+  var sid = getSessionId();
+  try {
+    var key = 'olleh_voice_button_try_id';
+    var last = Number(sessionStorage.getItem(key) || 0);
+    if (!Number.isSafeInteger(last) || last < 0 || last === Number.MAX_SAFE_INTEGER) throw new Error('Invalid try counter');
+    var next = last + 1;
+    sessionStorage.setItem(key, String(next));
+    return sid + 'T' + next;
+  } catch (e) {
+    if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+    fallbackTry += 1;
+    return fallbackSessionId + 'T' + fallbackTry;
+  }
+}
+
 function fetchSessionTokenFn() {
   return new Promise(function (resolve, reject) {
-    var sid =
-      window.crypto && crypto.randomUUID
-        ? crypto.randomUUID()
-        : 'sid_' +
-          Date.now().toString(36) +
-          '_' +
-          Math.random().toString(36).slice(2, 8);
+    var sid = nextSessionAttempt();
 
     var payload = {
       token: cfg.clientToken,

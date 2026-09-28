@@ -182,11 +182,12 @@
   frameWrap.appendChild(iframe);
 
   var isOpen = false, lastActive = null;
+  var fallbackSessionId = null, fallbackTry = 0, loadId = 0;
 
   // session helpers
   function getSessionId(){
     try{
-      var key = "olleh_ai_session_id";
+      var key = "olleh_voice_widget_session_id";
       var sid = sessionStorage.getItem(key);
       if (!sid) {
         sid = (w.crypto && crypto.randomUUID) ? crypto.randomUUID()
@@ -195,7 +196,24 @@
       }
       return sid;
     }catch(e){
-      return 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      return fallbackSessionId;
+    }
+  }
+
+  function nextSessionAttempt(){
+    var sid = getSessionId();
+    try {
+      var key = "olleh_voice_widget_try_id";
+      var last = Number(sessionStorage.getItem(key) || 0);
+      if (!Number.isSafeInteger(last) || last < 0 || last === Number.MAX_SAFE_INTEGER) throw new Error('Invalid try counter');
+      var next = last + 1;
+      sessionStorage.setItem(key, String(next));
+      return sid + 'T' + next;
+    } catch(e) {
+      if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+      fallbackTry += 1;
+      return fallbackSessionId + 'T' + fallbackTry;
     }
   }
 
@@ -308,15 +326,19 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     d.body.style.overflow = 'hidden';
 
     var baseUrl = stripTokenParam(cfg.iframeSrc) || "https://olleh.ai/demo";
-    var sid = getSessionId();
+    var sid = nextSessionAttempt();
+    var currentLoad = ++loadId;
+    iframe.src = 'about:blank';
 
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
       .then(function(tkn){
-        iframe.src = buildIframeUrl(baseUrl, tkn);
+        if (isOpen && currentLoad === loadId) iframe.src = buildIframeUrl(baseUrl, tkn);
       })
       .catch(function(err){
-        console.warn('olleh session-token error', err && err.message ? err.message : err);
-        iframe.src = cfg.iframeSrc ? cfg.iframeSrc : buildIframeUrl(baseUrl, "");
+        if (isOpen && currentLoad === loadId) {
+          console.warn('olleh session-token error', err && err.message ? err.message : err);
+          iframe.src = cfg.iframeSrc ? cfg.iframeSrc : buildIframeUrl(baseUrl, "");
+        }
       });
 
     focusLater(modal);
