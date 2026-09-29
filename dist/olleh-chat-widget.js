@@ -23,7 +23,7 @@
     var lastUserId = null;
     var hadConnected = false;
     var agentHadJoined = false;
-    var activeSessionId = null, fallbackSessionId = null, fallbackTry = 0, loadId = 0;
+    var activeRoomName = null, fallbackSessionId = null, loadId = 0;
   
     if (w.__OLLEH_CHAT_ACTIVE__) return;
     w.__OLLEH_CHAT_ACTIVE__ = true;
@@ -61,29 +61,14 @@
       }
     }
 
-    function nextSessionAttempt() {
-      var sid = getSessionId();
-      try {
-        var key = "olleh_chat_widget_try_id";
-        var last = Number(sessionStorage.getItem(key) || 0);
-        if (!Number.isSafeInteger(last) || last < 0 || last === Number.MAX_SAFE_INTEGER) throw new Error("Invalid try counter");
-        var next = last + 1;
-        sessionStorage.setItem(key, String(next));
-        return sid + "T" + next;
-      } catch (e) {
-        if (!fallbackSessionId) fallbackSessionId = "sid_" + Date.now().toString(36) + "_" + Math.random().toString(36).slice(2, 8);
-        fallbackTry += 1;
-        return fallbackSessionId + "T" + fallbackTry;
-      }
-    }
-  
     function deleteRoomOnClose() {
-      if (!hadConnected || !lastUserId || !activeSessionId) {
+      var prefix = "user-" + lastUserId + "_session-";
+      if (!hadConnected || !lastUserId || !activeRoomName || !activeRoomName.startsWith(prefix)) {
         logDebug("delete_room skipped (no connection/user yet)");
         return;
       }
       try {
-        var payload = { user_id: lastUserId, session_id: activeSessionId };
+        var payload = { user_id: lastUserId, session_id: activeRoomName.slice(prefix.length) };
         fetch(DELETE_ROOM_ENDPOINT, {
           method: "POST",
           headers: {
@@ -465,7 +450,7 @@
       deleteRoomOnClose();
       hadConnected = false;
       lastUserId = null;
-      activeSessionId = null;
+      activeRoomName = null;
       loadId += 1;
       try {
         iframe.contentWindow && iframe.contentWindow.postMessage({ type: "olleh-force-disconnect" }, "*");
@@ -474,7 +459,7 @@
       }
       // Wait for iframe to acknowledge disconnect before blanking src
       function ackHandler(evt) {
-        if (!evt || !evt.data) return;
+        if (!evt || !evt.data || evt.source !== iframe.contentWindow) return;
         if (evt.data.type === "olleh-disconnect-done") {
           // Set wait anchor if agent had actually joined (check both iframe response and our tracked state)
           var agentJoined = evt.data.agentJoined || agentHadJoined;
@@ -725,12 +710,11 @@
     function loadIframe() {
       logDebug("Loading iframe");
       var baseUrl = stripTokenParam(cfg.iframeSrc);
-      var sid = nextSessionAttempt();
+      var sid = getSessionId();
       var currentLoad = ++loadId;
       fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
         .then(function(tkn){
           if (currentLoad !== loadId) return;
-          activeSessionId = sid;
           iframe.src = buildIframeUrl(baseUrl, tkn);
         })
         .catch(function(err){
@@ -825,7 +809,8 @@
     btn.onclick = toggleModal;
     // Listen for postMessage from iframe to close widget
     function handleMessage(event) {
-      if (!event || !event.data) return;
+      if (!event || !event.data || event.source !== iframe.contentWindow) return;
+      if (event.origin !== new URL(cfg.iframeSrc, location.href).origin) return;
       if (event.data.type === "olleh-close-widget") {
         showClosePrompt();
         return;
@@ -834,6 +819,9 @@
         try {
           if (event.data.userId) {
             lastUserId = Number(event.data.userId);
+          }
+          if (typeof event.data.roomName === "string") {
+            activeRoomName = event.data.roomName;
           }
           if (event.data.hadRoom) {
             hadConnected = true;
@@ -847,14 +835,9 @@
         return;
       }
       if (event.data.type === "olleh-delete-room") {
-        try {
-          if (event.data.userId) {
-            lastUserId = Number(event.data.userId);
-          }
-        } catch (e) {
-          logDebug("Failed to capture delete-room payload", e);
+        if (event.data.roomName === activeRoomName && Number(event.data.userId) === lastUserId) {
+          deleteRoomOnClose();
         }
-        deleteRoomOnClose();
         return;
       }
       if (event.data.type === "olleh-check-wait") {

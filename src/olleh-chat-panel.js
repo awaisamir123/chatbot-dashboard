@@ -106,6 +106,7 @@ function initChatPanel() {
   var wsUrl = cfg.livekitUrl;
   var lastUserId = null;
   var hadConnected = false;
+  var activeRoomName = null;
   var authInFlight = false;
 
   var lkRoom = null;
@@ -870,9 +871,11 @@ function initChatPanel() {
       return;
     }
     try {
+      var prefix = 'user-' + lastUserId + '_session-';
+      if (!activeRoomName || !activeRoomName.startsWith(prefix)) return;
       var payload = {
         user_id: lastUserId || null,
-        session_id: getSessionId() || null,
+        session_id: activeRoomName.slice(prefix.length),
       };
       var body = JSON.stringify(payload);
       fetch(cfg.deleteRoomEndpoint, {
@@ -908,6 +911,7 @@ function initChatPanel() {
       if (hadConnected) {
         deleteRoomOnClose({ keepalive: true });
         hadConnected = false;
+        activeRoomName = null;
         rotateSessionId();
       }
       connected = false;
@@ -1024,6 +1028,7 @@ function initChatPanel() {
           remotes.push(p && p.identity);
         });
       } catch (e) {}
+      activeRoomName = room.name;
       console.log('[OllehChatPanel] Connected', room.name, {
         remote_count: remotes.length,
         remotes: remotes,
@@ -1238,6 +1243,7 @@ function initChatPanel() {
       deleteRoomOnClose();
     }
     hadConnected = false;
+    activeRoomName = null;
     rotateSessionId();
     lastUserId = null;
     sessionToken = null;

@@ -182,7 +182,7 @@
   frameWrap.appendChild(iframe);
 
   var isOpen = false, lastActive = null;
-  var fallbackSessionId = null, fallbackTry = 0, loadId = 0;
+  var fallbackSessionId = null, loadId = 0;
 
   // session helpers
   function getSessionId(){
@@ -198,22 +198,6 @@
     }catch(e){
       if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
       return fallbackSessionId;
-    }
-  }
-
-  function nextSessionAttempt(){
-    var sid = getSessionId();
-    try {
-      var key = "olleh_voice_widget_try_id";
-      var last = Number(sessionStorage.getItem(key) || 0);
-      if (!Number.isSafeInteger(last) || last < 0 || last === Number.MAX_SAFE_INTEGER) throw new Error('Invalid try counter');
-      var next = last + 1;
-      sessionStorage.setItem(key, String(next));
-      return sid + 'T' + next;
-    } catch(e) {
-      if (!fallbackSessionId) fallbackSessionId = 'sid_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
-      fallbackTry += 1;
-      return fallbackSessionId + 'T' + fallbackTry;
     }
   }
 
@@ -326,9 +310,8 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
     d.body.style.overflow = 'hidden';
 
     var baseUrl = stripTokenParam(cfg.iframeSrc) || "https://olleh.ai/demo";
-    var sid = nextSessionAttempt();
+    var sid = getSessionId();
     var currentLoad = ++loadId;
-    iframe.src = 'about:blank';
 
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
       .then(function(tkn){
