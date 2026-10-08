@@ -36,10 +36,12 @@ var cfg = {
     currentScript.dataset.ollehUserAvatar ||
     'https://olleh.ai/assets/common/boy-avatar.png',
   sessionEndpoint: 'https://api.olleh.ai/user/session-token',
-  registerEndpoint: 'https://pyapi.olleh.ai/register_user_session',
-  deleteRoomEndpoint: 'https://pyapi.olleh.ai/delete_room',
-  deleteRoomToken:
-    '64Ebc56f62Bb33bd6eeb46b43cC49e44f2e5715A988E50d2f3675CFF3Fb1',
+  registerEndpoint: 'https://api.olleh.ai/user/register-user-session',
+  deleteRoomEndpoint: 'https://api.olleh.ai/user/delete-room',
+  // Shared-secret Bearer checked by UserAuthMiddleware on the Node backend
+  // (AUTH_TOKEN env). Same literal value as voice-button's cfg.adminToken.
+  authToken:
+    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56',
   livekitUrl: 'wss://ollehproduction-l1px06vj.livekit.cloud',
   agentTimeout: parseInt(currentScript.dataset.ollehAgentTimeout || '45000', 10),
   origin:
@@ -783,7 +785,10 @@ function initChatPanel() {
 
     return fetch(cfg.registerEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + cfg.authToken,
+      },
       body: JSON.stringify(body),
     })
       .then(function (r) {
@@ -882,7 +887,7 @@ function initChatPanel() {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Api-Token': cfg.deleteRoomToken,
+          'Authorization': 'Bearer ' + cfg.authToken,
         },
         body: body,
         keepalive: keepalive,

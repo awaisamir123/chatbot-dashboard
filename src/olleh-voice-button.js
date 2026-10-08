@@ -22,7 +22,7 @@ var cfg = {
 
   // API endpoints (hardcoded, not overridable)
   sessionEndpoint: 'https://api.olleh.ai/user/session-token',
-  registerEndpoint: 'https://pyapi.olleh.ai/register_user_session',
+  registerEndpoint: 'https://api.olleh.ai/user/register-user-session',
   livekitUrl: 'wss://ollehproduction-l1px06vj.livekit.cloud',
 
   // Placement
@@ -591,7 +591,12 @@ function registerUserSessionFn() {
 
     fetch(cfg.registerEndpoint, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        // register-user-session is gated by UserAuthMiddleware (static
+        // Bearer AUTH_TOKEN); adminToken already carries that same value.
+        'Authorization': 'Bearer ' + cfg.adminToken,
+      },
       body: JSON.stringify(body),
     })
       .then(function (r) {
