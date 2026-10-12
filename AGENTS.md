@@ -22,8 +22,10 @@ Four widget types, configured entirely via `data-olleh-*` attributes on the `<sc
 ## Widget connection flow (hardcoded endpoints, not overridable)
 
 1. Widget generates a uuid session_id, then `POST https://api.olleh.ai/user/session-token` — exchange `data-olleh-client-token` (+ origin allowlist via `data-olleh-origin`) for a session token. Backend validates the request origin, creates a `sessions` record with the uuid, and returns a JWT embedding `session_id` + the agent record `id`.
-2. **Iframe widgets** (`olleh-voice-widget`, `olleh-chat-widget`) open `https://olleh.ai/demo` / `https://olleh.ai/chat` with that token — the hosted pages then run the standard `register_user_session` → LiveKit flow.
-3. **Bundled widgets** (`olleh-voice-button`, `olleh-chat-panel`) make an extra fetch-user call to resolve agent config, then `POST https://api.olleh.ai/user/register-user-session` for `lt_token` and connect `livekit-client` `Room` directly to `wss://ollehproduction-l1px06vj.livekit.cloud` — agent joins via dispatch. `olleh-chat-panel` also calls `POST https://api.olleh.ai/user/delete-room` on close (was `pyapi.olleh.ai`; endpoints migrate as part of the session-broker move into the Node backend — see `olleh_web/olleh/SESSION_BROKER_MIGRATION.md`).
+2. **Iframe widgets** (`olleh-voice-widget`, `olleh-chat-widget`) open `https://olleh.ai/demo` / `https://olleh.ai/chat` with that token — the hosted pages then run the standard `register-user-session` → LiveKit flow (see below).
+3. **Bundled widgets** (`olleh-voice-button`, `olleh-chat-panel`) make an extra fetch-user call to resolve agent config, then `POST https://api.olleh.ai/user/register-user-session` (`Authorization: Bearer cfg.adminToken`/`cfg.authToken` — the shared `AUTH_TOKEN` literal, checked by `UserAuthMiddleware`) for `lt_token` and connect `livekit-client` `Room` directly to `wss://ollehproduction-l1px06vj.livekit.cloud` — agent joins via dispatch. `olleh-chat-panel` also calls `POST https://api.olleh.ai/user/delete-room` on close.
+
+**Migration complete**: both bundled widgets' `src/` already point at `api.olleh.ai` for register/delete-room — `pyapi.olleh.ai` (`register_user_api`, now decommissioned) is no longer called anywhere in this repo. See `olleh_web/olleh/agents/modules/session-broker-and-logs.md` for the backend-side contract.
 
 In both paths `verifyToken` supplies the agent's full config (owner API keys, tool calls, memories, recording provider, instructions).
 
