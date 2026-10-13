@@ -18,8 +18,8 @@
     };
   
     // Delete-room API configuration (kept local, not in cfg)
-    var DELETE_ROOM_ENDPOINT = "https://pyapi.olleh.ai/delete_room";
-    var DELETE_ROOM_TOKEN = "64Ebc56f62Bb33bd6eeb46b43cC49e44f2e5715A988E50d2f3675CFF3Fb1";
+    var DELETE_ROOM_ENDPOINT = "https://api.olleh.ai/user/delete-room";
+    var DELETE_ROOM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56";
     var lastUserId = null;
     var hadConnected = false;
     var agentHadJoined = false;
@@ -73,7 +73,7 @@
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Api-Token": DELETE_ROOM_TOKEN
+            "Authorization": "Bearer " + DELETE_ROOM_TOKEN
           },
           body: JSON.stringify(payload)
         })
