@@ -9,7 +9,6 @@ Four widget types, configured entirely via `data-olleh-*` attributes on the `<sc
 - `olleh-voice-button.js` — self-contained voice call button (idle → connecting → active/End Call); bundles `livekit-client`; optional audio bars, positioning (`inline` / `fixed-bottom-right`), agent timeout
 - `olleh-chat-panel.js` — embedded chat panel widget (bundles livekit-client)
 - `olleh-voice-widget.js` / `olleh-chat-widget.js` — iframe-based variants (config: `data-olleh-iframe-src`, `-allow`, `-sandbox`, `-autostart`, branding attrs); default iframe target `https://olleh.ai/chat`
-- `chatbot-script.js`, `rag-chatbot-embed.js` — legacy embeds, currently fully commented out in dist
 - `olleh-voice.svg` — shared asset
 
 ## Sources & build
