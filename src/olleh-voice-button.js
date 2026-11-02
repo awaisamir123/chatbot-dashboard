@@ -1,4 +1,13 @@
 import { Room, RoomEvent } from 'livekit-client';
+import {
+  initUiChannel,
+  announceUiCapabilities,
+  startCapabilityAnnounce,
+  stopCapabilityAnnounce,
+  handleUiPacket,
+  isUiTopic,
+  clearUiRequest,
+} from './voice-button/ui-channel.js';
 
 // ─────────────────────────────────────────────────────────────
 // Olleh Voice Button Widget
@@ -72,6 +81,14 @@ var agentTimeoutId = null;
 var sessionToken = null;
 var isSpeaking = false;
 var fallbackSessionId = null;
+var uiWrap = null; // .olleh-vb-wrap — anchors the olleh.ui input card
+
+// olleh.ui channel — the module reads room/wrap lazily through getters so
+// it stays valid across reconnects and remounts.
+initUiChannel({
+  getRoom: function () { return lkRoom; },
+  getWrap: function () { return uiWrap; },
+});
 
 // ── VECTORIZATION TIMER ─────────────────────────────────────
 // Comment out this entire block to disable the countdown timer UI.
@@ -412,27 +429,34 @@ function escHtml(str) {
 updateUI();
 
 // ── Mount button into the DOM ────────────────────────────────
+// The button lives inside a .olleh-vb-wrap so the olleh.ui input card can
+// anchor above it identically across all three mount modes.
 function mountButton() {
+  var wrap = document.createElement('div');
+  wrap.className = 'olleh-vb-wrap';
+  wrap.appendChild(btn);
+  uiWrap = wrap;
+
   if (cfg.containerId) {
     var container = document.getElementById(cfg.containerId);
     if (container) {
-      container.appendChild(btn);
+      container.appendChild(wrap);
       return;
     }
   }
 
   if (cfg.position === 'fixed-bottom-right') {
-    btn.style.position = 'fixed';
-    btn.style.bottom = '24px';
-    btn.style.right = '24px';
-    btn.style.zIndex = '2147483000';
-    document.body.appendChild(btn);
+    wrap.style.position = 'fixed';
+    wrap.style.bottom = '24px';
+    wrap.style.right = '24px';
+    wrap.style.zIndex = '2147483000';
+    document.body.appendChild(wrap);
   } else {
     // Default "inline": insert right after the <script> tag
     if (currentScript.parentNode) {
-      currentScript.parentNode.insertBefore(btn, currentScript.nextSibling);
+      currentScript.parentNode.insertBefore(wrap, currentScript.nextSibling);
     } else {
-      document.body.appendChild(btn);
+      document.body.appendChild(wrap);
     }
   }
 }
@@ -750,6 +774,7 @@ function startCall() {
         console.log('[OllehVoiceButton] Connected to room');
         state = 'connected';
         updateUI();
+        startCapabilityAnnounce();
 
         // Check for participants that were already present
         if (lkRoom.remoteParticipants && lkRoom.remoteParticipants.size > 0) {
@@ -788,6 +813,9 @@ function startCall() {
       });
 
       lkRoom.on(RoomEvent.ParticipantConnected, function (participant) {
+        // The agent joins after our Connected event — re-announce so the
+        // capability packet isn't lost (idempotent agent-side).
+        announceUiCapabilities();
         var isAgent =
           participant.identity &&
           participant.identity.toLowerCase().indexOf('agent') !== -1;
@@ -825,8 +853,14 @@ function startCall() {
         } catch (e) { /* noop */ }
       });
 
+      lkRoom.on(RoomEvent.DataReceived, function (payload, participant, _kind, topic) {
+        if (isUiTopic(topic)) handleUiPacket(payload);
+      });
+
       lkRoom.on(RoomEvent.Disconnected, function (reason) {
         console.log('[OllehVoiceButton] Disconnected:', reason);
+        stopCapabilityAnnounce();
+        clearUiRequest();
         resetToIdle();
       });
 
@@ -863,6 +897,9 @@ function startCall() {
 
 // ── End call ─────────────────────────────────────────────────
 function endCall() {
+  stopCapabilityAnnounce();
+  clearUiRequest();
+
   if (agentTimeoutId) {
     clearTimeout(agentTimeoutId);
     agentTimeoutId = null;
