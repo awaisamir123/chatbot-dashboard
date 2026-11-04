@@ -95,6 +95,22 @@ export function stopCapabilityAnnounce() {
 }
 
 // ── Inbound envelopes ────────────────────────────────────────
+// Whether two views render the same field(s). A republished ui.request
+// identical to the one already open must not re-render — the card DOM is
+// rebuilt on each request, so a new request_id would wipe whatever the user
+// is mid-way through typing/selecting (e.g. a date picker collapsing
+// mid-click). Keep in sync with sameView in olleh-frontend's
+// useAgentUIChannel.js.
+function sameView(a, b) {
+  if (!a || !b || a.presentation !== b.presentation) return false;
+  var fa = (a.fields || []).map(function (f) { return f && f.key; });
+  var fb = (b.fields || []).map(function (f) { return f && f.key; });
+  return (
+    fa.length === fb.length &&
+    fa.every(function (k, i) { return k === fb[i]; })
+  );
+}
+
 function isForMe(target) {
   var room = getRoom && getRoom();
   var me =
@@ -124,6 +140,11 @@ export function handleUiPacket(data) {
     // v1 renders inline_field only — anything else drops silently.
     if (view.presentation !== 'inline_field') return;
     if (!view.fields || !view.fields.length) return;
+    // Ignore a republish of the already-open request — re-rendering would
+    // wipe in-progress input. Keep the original expiry too: the agent-side
+    // pending keeps its own expires_at, so this packet's TTL is not
+    // authoritative.
+    if (activeUiRequest && sameView(activeUiRequest.view, view)) return;
     // Single-open policy: a newer request replaces the current one.
     activeUiRequest = { request_id: payload.request_id, view: view };
     if (uiExpireTimer) clearTimeout(uiExpireTimer);
