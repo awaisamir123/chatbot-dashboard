@@ -38,10 +38,6 @@ var cfg = {
   sessionEndpoint: 'https://api.olleh.ai/user/session-token',
   registerEndpoint: 'https://api.olleh.ai/user/register-user-session',
   deleteRoomEndpoint: 'https://api.olleh.ai/user/delete-room',
-  // Shared-secret Bearer checked by UserAuthMiddleware on the Node backend
-  // (AUTH_TOKEN env). Same literal value as voice-button's cfg.adminToken.
-  authToken:
-    'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56',
   livekitUrl: 'wss://ollehproduction-l1px06vj.livekit.cloud',
   agentTimeout: parseInt(currentScript.dataset.ollehAgentTimeout || '45000', 10),
   origin:
@@ -100,10 +96,10 @@ function initChatPanel() {
   }
 
   // ── State ──────────────────────────────────────────────────
-  var sessionToken = null;
-  var sessionReady = false;
-  var sessionPrefetching = false;
-  var sessionPrefetchPromise = null;
+  var agentSessionToken = null;
+  var agentSessionReady = false;
+  var agentSessionPrefetching = false;
+  var agentSessionPrefetchPromise = null;
   var liveKitToken = null;
   var wsUrl = cfg.livekitUrl;
   var lastUserId = null;
@@ -680,7 +676,7 @@ function initChatPanel() {
     }, 0);
   }
 
-  function fetchSessionToken() {
+  function fetchAgentSessionToken() {
     var payload = {
       token: cfg.clientToken,
       session_id: getSessionId(),
@@ -726,34 +722,34 @@ function initChatPanel() {
       });
   }
 
-  function prefetchSessionToken() {
-    if (sessionReady && sessionToken) {
-      return Promise.resolve(sessionToken);
+  function prefetchAgentSessionToken() {
+    if (agentSessionReady && agentSessionToken) {
+      return Promise.resolve(agentSessionToken);
     }
-    if (sessionPrefetchPromise) return sessionPrefetchPromise;
+    if (agentSessionPrefetchPromise) return agentSessionPrefetchPromise;
 
-    sessionPrefetching = true;
-    sessionReady = false;
+    agentSessionPrefetching = true;
+    agentSessionReady = false;
     updateChrome();
 
-    sessionPrefetchPromise = fetchSessionToken()
+    agentSessionPrefetchPromise = fetchAgentSessionToken()
       .then(function (tkn) {
-        sessionToken = tkn;
+        agentSessionToken = tkn;
         lastUserId =
           decodeUserIdFromToken(tkn) || decodeUserIdFromToken(cfg.clientToken);
-        sessionReady = true;
-        sessionPrefetching = false;
-        sessionPrefetchPromise = null;
-        console.log('[OllehChatPanel] Session token ready');
+        agentSessionReady = true;
+        agentSessionPrefetching = false;
+        agentSessionPrefetchPromise = null;
+        console.log('[OllehChatPanel] Agent-session token ready');
         updateChrome();
         return tkn;
       })
       .catch(function (err) {
-        sessionPrefetching = false;
-        sessionPrefetchPromise = null;
-        sessionReady = false;
-        sessionToken = null;
-        console.error('[OllehChatPanel] Session prefetch failed:', err);
+        agentSessionPrefetching = false;
+        agentSessionPrefetchPromise = null;
+        agentSessionReady = false;
+        agentSessionToken = null;
+        console.error('[OllehChatPanel] Agent-session prefetch failed:', err);
         addMessage(
           'system',
           'Unable to start chat: ' +
@@ -764,12 +760,12 @@ function initChatPanel() {
         throw err;
       });
 
-    return sessionPrefetchPromise;
+    return agentSessionPrefetchPromise;
   }
 
-  function registerUserSession(sessToken) {
+  function registerUserSession(agentSessionJwt) {
     var body = {
-      token: sessToken,
+      token: agentSessionJwt,
       end_user_timezone: Intl.DateTimeFormat().resolvedOptions().timeZone,
     };
     var endUserId =
@@ -787,7 +783,10 @@ function initChatPanel() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        'Authorization': 'Bearer ' + cfg.authToken,
+        // register-user-session accepts the per-agent-session JWT issued by
+        // /user/session-token (AgentSessionAuthMiddleware); AUTH_TOKEN
+        // fallback remains for legacy callers during migration.
+        'Authorization': 'Bearer ' + agentSessionJwt,
       },
       body: JSON.stringify(body),
     })
@@ -826,13 +825,13 @@ function initChatPanel() {
   function ensureConnected() {
     if (connected || connecting || authInFlight) return;
 
-    if (!sessionToken || !sessionReady) {
-      console.log('[OllehChatPanel] Fetching session token on first send');
+    if (!agentSessionToken || !agentSessionReady) {
+      console.log('[OllehChatPanel] Fetching agent-session token on first send');
       connectingStarted = true;
       updateChrome();
-      prefetchSessionToken()
+      prefetchAgentSessionToken()
         .then(function () {
-          if (sessionReady && sessionToken) ensureConnected();
+          if (agentSessionReady && agentSessionToken) ensureConnected();
         })
         .catch(function () {
           connectingStarted = false;
@@ -846,7 +845,7 @@ function initChatPanel() {
     status = 'connecting';
     updateChrome();
 
-    registerUserSession(sessionToken)
+    registerUserSession(agentSessionToken)
       .then(function (data) {
         liveKitToken = data.liveKitToken;
         wsUrl = data.wsUrl || cfg.livekitUrl;
@@ -881,13 +880,14 @@ function initChatPanel() {
       var payload = {
         user_id: lastUserId || null,
         session_id: activeRoomName.slice(prefix.length),
+        token: agentSessionToken,
       };
       var body = JSON.stringify(payload);
       fetch(cfg.deleteRoomEndpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
-          'Authorization': 'Bearer ' + cfg.authToken,
+          'Authorization': 'Bearer ' + agentSessionToken,
         },
         body: body,
         keepalive: keepalive,
@@ -933,7 +933,7 @@ function initChatPanel() {
 
     // Queuing while session loads, registering, or waiting for welcome
     if (
-      sessionPrefetching ||
+      agentSessionPrefetching ||
       authInFlight ||
       connecting ||
       (connected && !welcomed)
@@ -1251,8 +1251,8 @@ function initChatPanel() {
     activeRoomName = null;
     rotateSessionId();
     lastUserId = null;
-    sessionToken = null;
-    sessionReady = false;
+    agentSessionToken = null;
+    agentSessionReady = false;
 
     renderMessages();
     updateChrome();

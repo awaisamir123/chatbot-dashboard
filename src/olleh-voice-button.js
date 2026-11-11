@@ -27,7 +27,6 @@ var currentScript =
 var cfg = {
   // Required
   clientToken: currentScript.dataset.ollehClientToken || '',
-  adminToken: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56',
 
   // API endpoints (hardcoded, not overridable)
   sessionEndpoint: 'https://api.olleh.ai/user/session-token',
@@ -78,7 +77,7 @@ var state = 'idle'; // "idle" | "processing" | "loading" | "connected"
 var lkRoom = null;
 var agentJoined = false;
 var agentTimeoutId = null;
-var sessionToken = null;
+var agentSessionToken = null;
 var isSpeaking = false;
 var fallbackSessionId = null;
 var uiWrap = null; // .olleh-vb-wrap — anchors the olleh.ui input card
@@ -495,7 +494,7 @@ function decodeClientToken() {
 function checkVectorizationFn(userId) {
   return fetch('https://api.olleh.ai/user/' + userId, {
     headers: {
-      'Authorization': 'Bearer ' + cfg.adminToken,
+      'Authorization': 'Bearer ' + agentSessionToken,
       'Content-Type': 'application/json',
     },
   })
@@ -532,7 +531,7 @@ function pollVectorizationFn(userId) {
     });
 }
 
-// ── API: fetch session token ─────────────────────────────────
+// ── API: fetch agent-session token ───────────────────────────
 function resolveOrigin() {
   if (cfg.origin !== null && cfg.origin !== undefined) return cfg.origin;
   try {
@@ -559,7 +558,7 @@ function getSessionId() {
   }
 }
 
-function fetchSessionTokenFn() {
+function fetchAgentSessionTokenFn() {
   return new Promise(function (resolve, reject) {
     var sid = getSessionId();
 
@@ -584,10 +583,10 @@ function fetchSessionTokenFn() {
           (data && data.data && data.data.token) ||
           (data && data.token);
         if (token) {
-          sessionToken = token;
+          agentSessionToken = token;
           resolve(token);
         } else {
-          reject(new Error('No session token in response'));
+          reject(new Error('No agent-session token in response'));
         }
       })
       .catch(reject);
@@ -599,7 +598,7 @@ function registerUserSessionFn() {
   return new Promise(function (resolve, reject) {
     var end_user_timezone = Intl.DateTimeFormat().resolvedOptions().timeZone;
     var body = {
-      token: sessionToken,
+      token: agentSessionToken,
       end_user_timezone: end_user_timezone,
     };
     var endUserId =
@@ -617,9 +616,10 @@ function registerUserSessionFn() {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
-        // register-user-session is gated by UserAuthMiddleware (static
-        // Bearer AUTH_TOKEN); adminToken already carries that same value.
-        'Authorization': 'Bearer ' + cfg.adminToken,
+        // register-user-session accepts the per-agent-session JWT issued by
+        // /user/session-token (AgentSessionAuthMiddleware); AUTH_TOKEN
+        // fallback remains for legacy callers during migration.
+        'Authorization': 'Bearer ' + agentSessionToken,
       },
       body: JSON.stringify(body),
     })
@@ -685,7 +685,7 @@ function resetToIdle() {
 
   lkRoom = null;
   agentJoined = false;
-  sessionToken = null;
+  agentSessionToken = null;
   isSpeaking = false;
   state = 'idle';
 
@@ -703,17 +703,18 @@ function startCall() {
 
   // ── PRE-SESSION: Vectorization check ─────────────────────────
   // Decodes client token → gets userId → checks if agent data is
-  // vectorized → waits with timer if not. Requires data-olleh-admin-token.
-  // Skip this block (set preSessionPromise = Promise.resolve()) to bypass.
+  // vectorized → waits with timer if not. Runs after
+  // fetchAgentSessionTokenFn because GET /user/:id is authorized by the
+  // per-agent-session JWT.
   var decoded = decodeClientToken();
   var userId = decoded && decoded.user && decoded.user.id;
 
-  var preSessionPromise;
-  if (!userId || !cfg.adminToken) {
-    // No admin token or undecodable token — skip check and proceed
-    preSessionPromise = Promise.resolve();
-  } else {
-    preSessionPromise = checkVectorizationFn(userId)
+  // ── END PRE-SESSION ──────────────────────────────────────────
+
+  fetchAgentSessionTokenFn()
+    .then(function () {
+      if (!userId) return;
+      return checkVectorizationFn(userId)
       .then(function (result) {
         if (!result.is_processed) {
           // ── VECTORIZATION TIMER START ── comment out 3 lines below to disable timer UI
@@ -747,12 +748,6 @@ function startCall() {
         state = 'loading';
         updateUI();
       });
-  }
-  // ── END PRE-SESSION ──────────────────────────────────────────
-
-  preSessionPromise
-    .then(function () {
-      return fetchSessionTokenFn();
     })
     .then(function () {
       return registerUserSessionFn();
