@@ -19,8 +19,8 @@
   
     // Delete-room API configuration (kept local, not in cfg)
     var DELETE_ROOM_ENDPOINT = "https://api.olleh.ai/user/delete-room";
-    var DELETE_ROOM_TOKEN = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJlbWFpbCI6Im9sbGVoX2FkbWluQG9sbGVoLmFpIiwiaWF0IjoxNzIxMzE1MzYzLCJleHAiOjE3MjE0MDE3NjN9.DwG01WyidZz2-gApVmg3-pxi-nAGunvr_CRRQLWF04476yhbg56";
     var lastUserId = null;
+    var lastSessionToken = null;
     var hadConnected = false;
     var agentHadJoined = false;
     var activeRoomName = null, fallbackSessionId = null, loadId = 0;
@@ -67,15 +67,20 @@
         logDebug("delete_room skipped (no connection/user yet)");
         return;
       }
+      if (!lastSessionToken) {
+        logDebug("delete_room skipped (no session token)");
+        return;
+      }
       try {
-        var payload = { user_id: lastUserId, session_id: activeRoomName.slice(prefix.length) };
+        var payload = { user_id: lastUserId, session_id: activeRoomName.slice(prefix.length), token: lastSessionToken };
         fetch(DELETE_ROOM_ENDPOINT, {
           method: "POST",
           headers: {
             "Content-Type": "application/json",
-            "Authorization": "Bearer " + DELETE_ROOM_TOKEN
+            "Authorization": "Bearer " + lastSessionToken
           },
-          body: JSON.stringify(payload)
+          body: JSON.stringify(payload),
+          keepalive: true
         })
           .then(function(res){ logDebug("delete_room status", res.status); })
           .catch(function(err){ logDebug("delete_room error", err); });
@@ -715,6 +720,7 @@
       fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
         .then(function(tkn){
           if (currentLoad !== loadId) return;
+          lastSessionToken = tkn;
           iframe.src = buildIframeUrl(baseUrl, tkn);
         })
         .catch(function(err){
