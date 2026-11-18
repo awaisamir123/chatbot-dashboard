@@ -14,7 +14,9 @@
       iconSource: script?.dataset.iconSource || "https://olleh.ai/assets/call-start-removebg-preview.png",
       buttonPosition: script?.dataset.buttonPosition || "bottom-right",
       // Origin for session-token (omit attr → location.origin)
-      origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null
+      origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null,
+      // End user ID for agent memory (omit attr → not sent)
+      endUserId: script?.dataset.ollehEndUserId || null
     };
   
     // Delete-room API configuration (kept local, not in cfg)
@@ -100,10 +102,11 @@
       }
     }
   
-    function buildIframeUrl(baseUrl, token) {
+    function buildIframeUrl(baseUrl, token, endUserId) {
       try {
         var u = new URL(baseUrl || "https://olleh.ai/chat", location.href);
         if (token) u.searchParams.set("token", token);
+        if (endUserId) u.searchParams.set("end_user_id", endUserId);
         u.searchParams.set("brand_text", cfg.brandText);
         u.searchParams.set("primary_color", cfg.primaryColor);
         u.searchParams.set("secondary_color", cfg.secondaryColor);
@@ -721,12 +724,12 @@
         .then(function(tkn){
           if (currentLoad !== loadId) return;
           lastSessionToken = tkn;
-          iframe.src = buildIframeUrl(baseUrl, tkn);
+          iframe.src = buildIframeUrl(baseUrl, tkn, cfg.endUserId);
         })
         .catch(function(err){
           if (currentLoad !== loadId) return;
           logDebug("Token fetch failed, fallback load", err);
-          iframe.src = buildIframeUrl(cfg.iframeSrc, "");
+          iframe.src = buildIframeUrl(cfg.iframeSrc, "", cfg.endUserId);
         });
     }
   

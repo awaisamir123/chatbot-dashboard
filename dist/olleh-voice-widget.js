@@ -13,7 +13,9 @@
     clientToken: script?.dataset.ollehClientToken || script?.dataset.ollehToken || "",
     sessionEndpoint: script?.dataset.ollehSessionEndpoint || "https://api.olleh.ai/user/session-token",
     // Origin for session-token (omit attr → location.origin)
-    origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null
+    origin: script?.dataset.ollehOrigin !== undefined ? script.dataset.ollehOrigin : null,
+    // End user ID for agent memory (omit attr → not sent)
+    endUserId: script?.dataset.ollehEndUserId || null
   };
 
   if (w.__OLLEH_EMBED_ACTIVE__) return;
@@ -212,15 +214,24 @@
     }
   }
 
-  function buildIframeUrl(baseUrl, token){
+  function buildIframeUrl(baseUrl, token, endUserId){
     try{
       var u = new URL(baseUrl || "https://olleh.ai/demo", location.href);
       if (token) u.searchParams.set('token', token);
+      if (endUserId) u.searchParams.set('end_user_id', endUserId);
       return u.toString();
     }catch(e){
-      if (!baseUrl) return "https://olleh.ai/demo?token=" + encodeURIComponent(token || "");
+      if (!baseUrl) {
+        var params = [];
+        if (token) params.push('token=' + encodeURIComponent(token));
+        if (endUserId) params.push('end_user_id=' + encodeURIComponent(endUserId));
+        return "https://olleh.ai/demo?" + params.join('&');
+      }
       var joiner = baseUrl.indexOf('?') > -1 ? '&' : '?';
-      return baseUrl + joiner + 'token=' + encodeURIComponent(token || "");
+      var params = [];
+      if (token) params.push('token=' + encodeURIComponent(token));
+      if (endUserId) params.push('end_user_id=' + encodeURIComponent(endUserId));
+      return baseUrl + joiner + params.join('&');
     }
   }
 
@@ -315,12 +326,12 @@ function fetchSessionToken(endpoint, clientToken, sessionId){
 
     fetchSessionToken(cfg.sessionEndpoint, cfg.clientToken, sid)
       .then(function(tkn){
-        if (isOpen && currentLoad === loadId) iframe.src = buildIframeUrl(baseUrl, tkn);
+        if (isOpen && currentLoad === loadId) iframe.src = buildIframeUrl(baseUrl, tkn, cfg.endUserId);
       })
       .catch(function(err){
         if (isOpen && currentLoad === loadId) {
           console.warn('olleh session-token error', err && err.message ? err.message : err);
-          iframe.src = cfg.iframeSrc ? cfg.iframeSrc : buildIframeUrl(baseUrl, "");
+          iframe.src = cfg.iframeSrc ? cfg.iframeSrc : buildIframeUrl(baseUrl, "", cfg.endUserId);
         }
       });
 
